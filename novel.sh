@@ -4,6 +4,12 @@ NOVELS_PER_PAGE='24'
 DIR_PREFIX='pixiv_novels/'
 COOKIE=""
 USER_ID=""
+ABORT_WHILE_EMPTY_CONTENT=0
+
+[ -f pixiv-config ] && {
+	source pixiv-config
+	echo "[info] user specific configuration loaded"
+}
 
 sendpost() {
 	curl -s "https://www.pixiv.net/$1" -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:67.0) Gecko/20100101 Firefox/67.0" -H "Accept: application/json" -H 'Accept-Language: en_US,en;q=0.5' --compressed -H 'Referer: https://www.pixiv.net' -H 'DNT: 1' -H "Cookie: ${COOKIE}" -H 'TE: Trailers'
@@ -24,7 +30,7 @@ parsehdr() {
 	local tmp=`echo "$1" | jq .error`
 	if [ "$tmp" = "true" -o "$?" != "0" ]; then
 		tmp=`echo "$1" | jq .message`
-		echo "error detected when parsing hdr, server respond: $tmp"
+		echo "[error] error detected when parsing hdr, server respond: $tmp"
 		return 1
 	fi
 	return 0
@@ -56,7 +62,7 @@ while true ; do
 	works=`echo "$data" | jq .body.works`
 	works_length=`echo "$works" | jq '. | length'`
 
-	echo "total: ${total}, processing page: ${page}, in this page: ${works_length}"
+	echo "[info] total: ${total}, processing page: ${page}, in this page: ${works_length}"
 
 	for i in `seq 0 $(( $works_length - 1 ))` ; do
 		tmp=`echo "$works" | jq .[${i}]`
@@ -67,8 +73,15 @@ while true ; do
 		tmp=`get_novel ${meta[id]}`
 		parsehdr "$tmp" || exit 1
 		tmp=`echo "$tmp" | jq .body`
+
 		declare -A novel
 		parsenovel "$tmp" novel
+
+		if [ -z "${novel[content]}" ]; then
+			echo "[warning] empty novel content detected, but server responed a success hdr."
+			[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
+		fi
+
 		mkdir -p "${DIR_PREFIX}/${meta[author]}/"
 		echo "${novel[content]}" > "${DIR_PREFIX}/${meta[author]}/${meta[id]}-${meta[title]}-${novel[date]}.txt"
 	done
