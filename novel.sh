@@ -47,19 +47,19 @@ parsehdr() {
 parsenovelmeta() {
 	declare -n  __meta="$2"
 	__meta[id]=`echo "$1" | jq '.id | tonumber'`
-	__meta[title]="`echo "$1" | jq -r '.title'`"
+	__meta[title]=`echo "$1" | jq -r '.title'`
 	__meta[authorid]=`echo "$1" | jq -r '.userId'`
-	__meta[author]="`echo "$1" | jq -r '.userName'`"
-	__meta[authorid]="`echo "$1" | jq '.userId | tonumber'`"
+	__meta[author]=`echo "$1" | jq -r '.userName'`
+	__meta[authorid]=`echo "$1" | jq '.userId | tonumber'`
 	__meta[text_count]=`echo "$1" | jq '.textCount'`
 #	__meta[desc]="`echo "$1" | jq -r '.description'`"
 
-	local tmp=`echo "$1" | jq -r '.seriesId'`
+	local tmp=`echo "$1" | jq '.seriesId'`
 	if [ "$tmp" = 'null' ]; then
-		__data[series]=''
+		__meta[series]=''
 	else
-		__data[series]=`echo "$1" | jq -r '.seriesId | tonumber'`
-		__data[series_name]=`echo "$1" | jq -r '.seriesTitle'`
+		__meta[series]=`echo "$1" | jq '.seriesId | tonumber'`
+		__meta[series_name]=`echo "$1" | jq -r '.seriesTitle'`
 	fi
 }
 
@@ -120,7 +120,7 @@ EOF
 save_my_love() {
 	local page='0'
 	local total=''
-	local series_dir='title'
+	local series_dir=''
 
 	local ignore data works works_length tmp metastr dir flags old_text_count
 
@@ -147,7 +147,7 @@ save_my_love() {
 				if [ -z "${meta[series]}" ]; then
 					series_dir=""
 				else
-					series_dir="${meta[series]}-${meta[series_name]}"
+					series_dir="/${meta[series]}-${meta[series_name]}"
 					flags="${flags}S"
 				fi
 			fi
