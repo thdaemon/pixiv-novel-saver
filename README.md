@@ -1,4 +1,4 @@
-# Pixiv Loved Novel Saver
+# Pixiv Novel Saver
 
 A script to save your loved novels to local disk.
 
@@ -31,20 +31,21 @@ Run the script
 $ ./novel.sh -c -m
 ```
 
-
 It will avoid repeated saves after the second time when use Lazy Mode. (`-c` or `--lazy-text-count` option enables Lazy Mode).
 
 Warning: It's dangerous, because the novel may have been updated, and there is no way to see the last update time of the novel before getting the full novel. However, there are still some ways to allow roughly guessing whether the novel has been updated, such as the number of words, but this is not 100% accurate. 
 
-It will save all your loved novels. (`-m` or `--save-my-loves` option do it)
+It will save all your bookmarked novels. (`-m` or `--save-my-bookmarks` option do it)
+
+To save novels by an author, you can use `-A <ID>` or `--save-author <ID>`.
+
+Some other options are useful, such as `-d, --no-series`, `-E, --ignore-empty`, `-w, --window-size`, etc.
 
 For more infomation, run
 
 ```
 $ ./novel.sh -h
 ```
-
-Some options are useful, such as `-d, --no-series`, `-E, --ignore-empty`, `-w, --window-size`, etc.
 
 You can also set default options in `pixiv-config`, but you need to read source code to find which you want...
 
@@ -70,4 +71,8 @@ You may have noticed the uppercase letters before each novel in the output, whic
 
 - [ ] Add built-in login
 
-- [ ] Save novels from author userid or series id
+- [x] Save novels from author userid
+
+- [ ] Save novels from series id
+
+- [ ] Implement all unimplemented options (see `(not impl)` in `-h` usage)
