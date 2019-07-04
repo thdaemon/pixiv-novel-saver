@@ -31,9 +31,9 @@ Run the script
 $ ./novel.sh -c -m
 ```
 
-It will avoid repeated saves after the second time when use Lazy Mode. (`-c` or `--lazy-text-count` option enables Lazy Mode).
+It will avoid repeated saves after the second time when use "text count" Lazy Mode. (`-c` or `--lazy-text-count` option enables "text count" Lazy Mode). (learn more: see "Lazy mode" section)
 
-Warning: It's dangerous, because the novel may have been updated, and there is no way to see the last update time of the novel before getting the full novel. However, there are still some ways to allow roughly guessing whether the novel has been updated, such as the number of words, but this is not 100% accurate. 
+Warning: It's dangerous, because the novel may have been updated, and there is no way to see the last update time of the novel before getting the full novel for this source type (bookmarks). However, there are still some ways to allow roughly guessing whether the novel has been updated, such as the number of words, but this is not 100% accurate. 
 
 It will save all your bookmarked novels. (`-m` or `--save-my-bookmarks` option do it)
 
@@ -48,6 +48,16 @@ $ ./novel.sh -h
 ```
 
 You can also set default options in `pixiv-config`, but you need to read source code to find which you want...
+
+## Lazy mode
+
+We support different levels of lazy mode for different sources. There are three types.
+
+Mode|Source|Description
+----|------|-----------
+always (full supported)|`-s, --save-series`|For this source, Pixiv gives us "update time" before getting full content of novel. So lazy mode is always on. Novels will be updated only when the author updates their novel. It will avoid repeated saves after the second time. It's not dangerous.
+text count|`-m, --save-my-bookmarks` and `-A, --save-author`|For this source, Pixiv does NOT give us "update time" before getting full content of novel. However, there are still some ways to allow roughly guessing whether the novel has been updated, such as the number of words, but this is not 100% accurate. `-c` or `--lazy-text-count` option enables "text count" Lazy Mode.
+never (not supported)|`-a, --save-novel`|For this source, lazy mode is impossible.
 
 ## Flags
 

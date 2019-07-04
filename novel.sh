@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SCRIPT_VERSION='0.1.4'
+SCRIPT_VERSION='0.1.5'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pixiv_novels/'
@@ -84,21 +84,41 @@ parsenovelmetamobile() {
 	fi
 }
 
+__pnm_series_try0() {
+	declare -n  __meta_="$2"
+	local tmp
+	tmp=`echo "$1" | jq -e '.seriesId'`
+	if [ "$?" = '0' -a "$tmp" != 'null' ]; then
+		__meta_[series]=`echo "$1" | jq '.seriesId | tonumber'`
+		__meta_[series_name]=`echo "$1" | jq -r '.seriesTitle'`
+		return 0
+	fi
+	return 1
+}
+__pnm_series_try1() {
+	declare -n  __meta_="$2"
+	local tmp
+	tmp=`echo "$1" | jq -e '.seriesNavData'`
+	if [ "$?" = '0' -a "$tmp" != 'null' ]; then
+		__meta_[series]=`echo "$tmp" | jq '.seriesId | tonumber'`
+		__meta_[series_name]=`echo "$tmp" | jq -r '.title'`
+		return 0
+	fi
+	return 1
+}
+
 parsenovelmeta() {
 	declare -n  __meta="$2"
+
 	__meta[id]=`echo "$1" | jq '.id | tonumber'`
 	__meta[title]=`echo "$1" | jq -r '.title'`
 	__meta[author]=`echo "$1" | jq -r '.userName'`
 	__meta[authorid]=`echo "$1" | jq '.userId | tonumber'`
 	__meta[text_count]=`echo "$1" | jq '.textCount'`
 
-	local tmp=`echo "$1" | jq '.seriesId'`
-	if [ "$tmp" = 'null' ]; then
-		__meta[series]=''
-	else
-		__meta[series]=`echo "$1" | jq '.seriesId | tonumber'`
-		__meta[series_name]=`echo "$1" | jq -r '.seriesTitle'`
-	fi
+	__meta[series]=''
+	__pnm_series_try0 "$1" __meta || \
+		__pnm_series_try1 "$1" __meta
 }
 
 parsenovel() {
@@ -109,7 +129,7 @@ parsenovel() {
 
 usage() {
 	cat <<EOF
-Pixiv novel saver
+Pixiv novel saver ${SCRIPT_VERSION}
 Copyright thdaemon <thxdaemon@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
@@ -128,26 +148,30 @@ usage: $1 [OPTIONS]
 
 MISC OPTIONS:
   -c, --lazy-text-count    Do not re-download novel when same text count
-                           (May lose updates, but should be rare)
-                           (For series, pixiv can give us a timestamp, lazy
-                           mode enabled always and won't use textCount)
+                             (May lose updates, but should be rare)
+                             (For series, pixiv can give us a timestamp, lazy
+                             mode enabled always and won't use textCount)
   -d, --no-series          Save novel to author's directory, no series subdir
   -o, --output <DIR>       default: 'pixiv_novels/'
   -E, --ignore-empty       Do not stop while meeting a empty content
   -w, --window-size <NPP>  default: 24, how many items per page
-                           (Not available in --save-author)
+                             (Not available in --save-author and --save-novel)
   --strip-nonascii-title   Strip non-ASCII title characters (not impl)
-  --download-inline-image   (not impl)
-  --parse-pixiv-chapters    (not impl)
+  --download-inline-image  (not impl)
+  --parse-pixiv-chapters   (not impl)
 
 SOURCE OPTIONS:
   -m, --save-my-bookmarks  Save all my bookmarked novels
-  -a, --save-novel <ID>    (Can be specified multiple times)
-                           Save a novel by ID  (not impl)
-  -s, --save-series <ID>   (Can be specified multiple times)
-                           Save all public novels in a series by ID (not impl)
-  -A, --save-author <ID>   (Can be specified multiple times)
-                           Save all public novels by a author (not impl)
+                             Lazy mode: text count (enable it by -c)
+  -a, --save-novel <ID>    Save a novel by its ID
+                             Lazy mode: never (not supported)
+                             Can be specified multiple times
+  -s, --save-series <ID>   Save all public novels in a series by ID (not impl)
+                             Lazy mode: always (full supported)
+                             Can be specified multiple times
+  -A, --save-author <ID>   Save all public novels published by an author
+                             Lazy mode: text count (enable it by -c)
+                             Can be specified multiple times
 
 EXAMPLES:
 	$1 -c -m
@@ -208,6 +232,43 @@ download_novel() {
 		echo "${novel[content]}" > "${dir}/${meta[id]}-${meta[title]}-${novel[date]}.txt"
 		echo "$metastr" > "${dir}/${meta[id]}-v1.nmeta"
 	fi
+}
+
+save_id() {
+	local id="$1"
+	local flags='N'
+
+	local tmp series_dir dir
+
+	tmp=`get_novel ${id}`
+	parsehdr "$tmp" || exit 1
+
+	tmp=`echo "$tmp" | jq .body`
+
+	declare -A meta
+	declare -A novel
+	parsenovelmeta "$tmp" meta
+	parsenovel "$tmp" novel
+
+	if [ "${NO_SERIES}" = '0' ]; then
+		if [ -z "${meta[series]}" ]; then
+			series_dir=""
+		else
+			series_dir="/${meta[series]}-${meta[series_name]}"
+			flags="${flags}S"
+		fi
+	fi
+	dir="${DIR_PREFIX}/singles/${meta[authorid]}-${meta[author]}${series_dir}/"
+
+	echo "=> ${flags}  ${meta[id]} '${meta[title]}' ${meta[author]}"
+
+	if [ -z "${novel[content]}" ]; then
+		echo "[warning] empty novel content detected, but server responed a success hdr."
+		[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
+	fi
+
+	mkdir -p "$dir"
+	echo "${novel[content]}" > "${dir}/${meta[id]}-${meta[title]}-${novel[date]}.txt"
 }
 
 save_author() {
@@ -318,6 +379,13 @@ done
 [ "$bookmarks" = '1' ] && {
 	echo "[info] saving my bookmarked novels..."
 	save_my_bookmarks
+}
+
+[ "${#novels[@]}" = '0' ] || {
+	echo "[info] saving novels by ID..."
+	for i in "${novels[@]}"; do
+		save_id "${i}"
+	done
 }
 
 [ "${#authors[@]}" = '0' ] || {
