@@ -22,8 +22,8 @@ authors=()
 }
 
 declare -A useragent
-useragent[desktop]="User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:67.0) Gecko/20100101 Firefox/67.0"
-useragent[mobile]="User-Agent: Mozilla/5.0 (Android 9.0; Mobile; rv:67.0) Gecko/67.0 Firefox/67.0"
+useragent[desktop]="User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0"
+useragent[mobile]="User-Agent: Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox/68.0"
 
 sendpost() {
 	curl -s "https://www.pixiv.net/$1" -H "${useragent["${2:-desktop}"]}" -H "Accept: application/json" -H 'Accept-Language: en_US,en;q=0.5' --compressed -H 'Referer: https://www.pixiv.net' -H 'DNT: 1' -H "Cookie: ${COOKIE}" -H 'TE: Trailers'
