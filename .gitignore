@@ -3,3 +3,6 @@ pixiv_novels/
 
 # hide my cookie :-)
 pixiv-config
+
+# hide VIM swp
+.*.swp

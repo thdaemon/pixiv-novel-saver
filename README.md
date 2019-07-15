@@ -33,7 +33,7 @@ $ ./novel.sh -c -m
 
 `-c` or `--lazy-text-count` option enables "text count" lazy mode. For this example, it will avoid repeated saves after the second time.  But in this example it's a little dangerous, because the novel may have been updated, and there is no way to see the last update time of the novel before getting the full novel for this source type (bookmarks). However, there are still some ways to allow roughly guessing whether the novel has been updated, such as the number of words, but this is not 100% accurate. For more information, please refer to "Lazy mode" section.
 
-It will save all your bookmarked novels. (`-m` or `--save-my-bookmarks` option do it)
+`-m` or `--save-my-bookmarks` option make program to save all your bookmarked novels.
 
 To save novels by an author, you can use `-A <ID>` or `--save-author <ID>`. (Can be specified multiple times)
 
@@ -67,9 +67,11 @@ You may have noticed the uppercase letters before each novel in the output, whic
 
 - `S` means the novel is in a series. To disable series support, specify `-d` or `--no-series`.
 
-- `I` on Lazy Mode, this novel have been ignored.
+- `T` Timestamp available. Pixiv gives us "update time" before getting full content of novel and lazy mode is always on.
 
-- `U` on Lazy Mode, this novel have been updated.
+- `I` on Lazy mode, this novel have been ignored.
+
+- `U` This novel have been updated. It means that this novel will be re-downloaded or a new version will be saved.
 
 ## TODO
 
@@ -83,6 +85,6 @@ You may have noticed the uppercase letters before each novel in the output, whic
 
 - [x] Save novels from author userid
 
-- [ ] Save novels from series id
+- [x] Save novels from series id (beta)
 
 - [ ] Implement all unimplemented options (see `(not impl)` in `-h` usage)

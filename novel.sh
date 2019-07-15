@@ -41,6 +41,17 @@ ls_novels_by_author() {
 	sendpost "touch/ajax/user/novels?id=${userid}&p=${page}" mobile
 }
 
+get_series_info() {
+	local seriesid="$1"
+	sendpost "ajax/novel/series/${seriesid}"
+}
+
+ls_novels_by_series() {
+	local seriesid="$1"
+	local offset=$(( ${NOVELS_PER_PAGE} * ${2:-0} ))
+	sendpost "ajax/novel/series_content/${seriesid}?limit=${NOVELS_PER_PAGE}&last_order=${offset}&order_by=asc"
+}
+
 get_novel() {
 	local novelid="$1"
 	sendpost "ajax/novel/${novelid}"
@@ -107,6 +118,17 @@ __pnm_series_try1() {
 	return 1
 }
 
+__pnm_timestamp() {
+	declare -n  __meta_="$2"
+	local tmp
+	tmp=`echo "$1" | jq -e '.reuploadTimestamp'`
+	if [ "$?" = '0' -a "$tmp" != 'null' ]; then
+		__meta_[timestamp]="$tmp"
+		return 0
+	fi
+	return 1
+}
+
 parsenovelmeta() {
 	declare -n  __meta="$2"
 
@@ -119,6 +141,9 @@ parsenovelmeta() {
 	__meta[series]=''
 	__pnm_series_try0 "$1" __meta || \
 		__pnm_series_try1 "$1" __meta
+
+	__pnm_timestamp "$1" __meta
+	return 0
 }
 
 parsenovel() {
@@ -166,7 +191,7 @@ SOURCE OPTIONS:
   -a, --save-novel <ID>    Save a novel by its ID
                              Lazy mode: never (not supported)
                              Can be specified multiple times
-  -s, --save-series <ID>   Save all public novels in a series by ID (not impl)
+  -s, --save-series <ID>   Save all public novels in a series by ID (beta)
                              Lazy mode: always (full supported)
                              Can be specified multiple times
   -A, --save-author <ID>   Save all public novels published by an author
@@ -182,10 +207,12 @@ EOF
 }
 
 download_novel() {
+	local flag_pad="     "
+	local flag_max_len=5
 	local sdir="$1"
 	declare -n  meta="$2"
 
-	local ignore flags series_dir dir old_text_count tmp
+	local ignore flags series_dir dir old_text_count old_ts tmp
 
 	ignore='0'
 	flags='N'
@@ -202,18 +229,31 @@ download_novel() {
 
 	dir="${DIR_PREFIX}/${sdir}/${meta[authorid]}-${meta[author]}${series_dir}/"
 	if [ -f "${dir}/${meta[id]}-v1.nmeta" ]; then
-		old_text_count=`cat "${dir}/${meta[id]}-v1.nmeta" | jq -e .textCount`
-		[ "$?" != '0' ] && old_text_count=`cat "${dir}/${meta[id]}-v1.nmeta" | jq -e .text_length`
+		if [ -n "${meta[timestamp]}" ]; then
+			flags="${flags}T"
+			old_ts=`cat "${dir}/${meta[id]}-v1.nmeta" | jq -e .reuploadTimestamp`
 
-		if [ "$old_text_count" = "${meta[text_count]}" -a "$LAZY_TEXT_COUNT" = '1' ]; then
-			flags="${flags}I"
-			ignore=1
+			if [ "$old_ts" = "${meta[timestamp]}" ]; then
+				flags="${flags}I"
+				ignore=1
+			else
+				flags="${flags}U"
+			fi
 		else
-			flags="${flags}U"
+			old_text_count=`cat "${dir}/${meta[id]}-v1.nmeta" | jq -e .textCount`
+			[ "$?" != '0' ] && old_text_count=`cat "${dir}/${meta[id]}-v1.nmeta" | jq -e .text_length`
+
+			if [ "$old_text_count" = "${meta[text_count]}" -a "$LAZY_TEXT_COUNT" = '1' ]; then
+				flags="${flags}I"
+				ignore=1
+			else
+				flags="${flags}U"
+			fi
 		fi
 	fi
 
-	echo "=> ${flags}  ${meta[id]} '${meta[title]}' ${meta[author]}"
+	flags="${flags}${flag_pad}"
+	echo "=> ${flags:0:${flag_max_len}} ${meta[id]} '${meta[title]}' ${meta[author]}"
 
 	if [ "$ignore" = '0' ]; then
 		tmp=`get_novel ${meta[id]}`
@@ -301,6 +341,43 @@ save_author() {
 	done
 }
 
+save_series() {
+	local id="$1"
+	local page='0'
+
+	local novels works_length tmp total title
+
+	tmp=`get_series_info "$id"`
+	parsehdr "$tmp" || exit 1
+
+	total=`jq .body.displaySeriesContentCount <<< "$tmp"`
+	title=`jq -r .body.title <<< "$tmp"`
+	echo "[info] series '${title}' ($id) has $total novels"
+
+	while true ; do
+		novels=`ls_novels_by_series "$id" "$page"`
+		parsehdr "$novels" || exit 1
+
+		novels=`jq .body.seriesContents	<<< "$novels"`
+		works_length=`jq '. | length' <<< "$novels"`
+
+		echo "[info] series page: $page, in this page: ${works_length}"
+
+		for i in `seq 0 $(( $works_length - 1 ))` ; do
+			metastr=`echo "$novels" | jq .[${i}]`
+			declare -A novel_meta
+			parsenovelmeta "$metastr" novel_meta
+			meta[series]="$id"
+			meta[series_name]="$title"
+			download_novel "by-series" novel_meta
+		done
+
+		page=$(( $page + 1 ))
+		tmp=$(( $page * $NOVELS_PER_PAGE ))
+		[ "$tmp" -ge "$total" ] && break
+	done
+}
+
 save_my_bookmarks() {
 	local page='0'
 	local total=''
@@ -358,7 +435,7 @@ while [ "$#" -gt 0 ]; do
 		shift
 		;;
 	-s|--save-series)
-		seriesesp[${#serieses[@]}]="$2"
+		serieses[${#serieses[@]}]="$2"
 		shift
 		;;
 	-A|--save-author)
@@ -393,5 +470,13 @@ done
 	for i in "${authors[@]}"; do
 		echo "[info] starting to save novels of author whose ID is ${i}"
 		save_author "${i}"
+	done
+}
+
+[ "${#serieses[@]}" = '0' ] || {
+	echo "[info] saving novels by series..."
+	for i in "${serieses[@]}"; do
+		echo "[info] starting to save novels from series ID ${i}"
+		save_series "${i}"
 	done
 }
