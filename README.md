@@ -35,7 +35,9 @@ $ ./novel.sh -c -m
 
 `-m` or `--save-my-bookmarks` option make program to save all your bookmarked novels.
 
-To save novels by an author, you can use `-A <ID>` or `--save-author <ID>`. (Can be specified multiple times)
+To save all novels by an author, you can use `-A <ID>` or `--save-author <ID>`. (Can be specified multiple times)
+
+To save all novels from a series, you can use `-s <ID>` or `--save-series <ID>`. (Can be specified multiple times)
 
 To save novels by it ID, you can use `-a <ID>` or `--save-novel <ID>`. (Can be specified multiple times)
 

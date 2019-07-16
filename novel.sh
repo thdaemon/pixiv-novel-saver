@@ -89,6 +89,21 @@ pixiv_get_user_info() {
 	return 0
 }
 
+pixiv_get_series_info() {
+	local seriesid="$1"
+	declare -n  __meta="$2"
+
+	local tmp
+
+	tmp=`sendpost "ajax/novel/series/${seriesid}"`
+	__pixiv_parsehdr "$tmp" pixiv_error || return 1
+
+	json_get_integer "$tmp" .body.userId __meta[authorid]
+	json_get_integer "$tmp" .body.displaySeriesContentCount __meta[total]
+	json_get_string "$tmp" .body.title __meta[title]
+	return 0
+}
+
 # TODO: refactor ugly old pixiv functions implementations
 
 ls_novels() {
@@ -101,11 +116,6 @@ ls_novels_by_author() {
 	local userid="$1"
 	local page="${2:-0}"
 	sendpost "touch/ajax/user/novels?id=${userid}&p=${page}" mobile
-}
-
-get_series_info() {
-	local seriesid="$1"
-	sendpost "ajax/novel/series/${seriesid}"
 }
 
 ls_novels_by_series() {
@@ -406,19 +416,13 @@ save_series() {
 	local id="$1"
 	local page='0'
 
-	local novels works_length tmp total title authorid
-	declare -A author_info
+	local novels works_length tmp
+	declare -A series_info author_info
 
-	tmp=`get_series_info "$id"`
-	parsehdr "$tmp" || exit 1
+	pixiv_get_series_info "$id" series_info || pixiv_errquit pixiv_get_series_info
+	pixiv_get_user_info "${series_info[authorid]}" author_info || pixiv_errquit pixiv_get_user_info
 
-	authorid=`jq -r .body.userId <<< "$tmp"`
-	total=`jq .body.displaySeriesContentCount <<< "$tmp"`
-	title=`jq -r .body.title <<< "$tmp"`
-
-	pixiv_get_user_info "$authorid" author_info || pixiv_errquit pixiv_get_user_info
-
-	echo "[info] series '${title}' ($id) by '${author_info[name]}' has $total novels"
+	echo "[info] series '${series_info[title]}' ($id) by '${author_info[name]}' has ${series_info[total]} novels"
 
 	while true ; do
 		novels=`ls_novels_by_series "$id" "$page"`
@@ -434,15 +438,15 @@ save_series() {
 			declare -A novel_meta
 			parsenovelmeta "$metastr" novel_meta
 			novel_meta[series]="$id"
-			novel_meta[series_name]="$title"
+			novel_meta[series_name]="${series_info[title]}"
 			novel_meta[author]="${author_info[name]}"
-			novel_meta[authorid]="$authorid"
+			novel_meta[authorid]="${series_info[authorid]}"
 			download_novel "by-series" novel_meta
 		done
 
 		page=$(( $page + 1 ))
 		tmp=$(( $page * $NOVELS_PER_PAGE ))
-		[ "$tmp" -ge "$total" ] && break
+		[ "$tmp" -ge "${series_info[total]}" ] && break
 	done
 }
 
