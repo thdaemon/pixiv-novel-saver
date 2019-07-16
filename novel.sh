@@ -29,6 +29,68 @@ sendpost() {
 	curl -s "https://www.pixiv.net/$1" -H "${useragent["${2:-desktop}"]}" -H "Accept: application/json" -H 'Accept-Language: en_US,en;q=0.5' --compressed -H 'Referer: https://www.pixiv.net' -H 'DNT: 1' -H "Cookie: ${COOKIE}" -H 'TE: Trailers'
 }
 
+json_has() {
+	jq -e "has(\"${2}\")" <<< "$1" > /dev/null
+}
+
+json_get_object() {
+	declare -n  __msg="$3"
+	__msg=`jq "$2" <<< "$1"`
+}
+
+json_get_string() {
+	declare -n  __msg="$3"
+	__msg=`jq -e -r "$2 // empty" <<< "$1"`
+}
+
+json_get_integer() {
+	declare -n  __msg="$3"
+	__msg=`jq "$2 | tonumber" <<< "$1"`
+}
+
+pixiv_error=''
+
+__pixiv_parsehdr() {
+	local tmp
+	declare -n  __msg="$2"
+
+	if json_has "$1" error ; then
+		json_get_object "$1" .error tmp
+		if [ "$tmp" = "true" ]; then
+			json_get_string "$1" .message tmp
+			[ -n "$tmp" ] && __msg="server respond: $tmp"
+			return 1
+		fi
+	else
+		__msg="network error"
+		return 1
+	fi
+	return 0
+}
+
+pixiv_errquit() {
+	echo "[error] ${1}: ${pixiv_error}"
+	exit 1
+}
+
+pixiv_get_user_info() {
+	local userid="$1"
+	declare -n  __meta="$2"
+
+	local tmp
+
+	tmp=`sendpost "ajax/user/${userid}?full=0"`
+	__pixiv_parsehdr "$tmp" pixiv_error || return 1
+
+	__meta[id]="$userid"
+	json_get_string "$tmp" .body.name __meta[name]
+	json_get_object "$tmp" .body.isFollowed __meta[followed]
+	json_get_object "$tmp" .body.isMypixiv __meta[my]
+	return 0
+}
+
+# TODO: refactor ugly old pixiv functions implementations
+
 ls_novels() {
 	local userid="$1"
 	local offset=$(( ${NOVELS_PER_PAGE} * ${2} ))
@@ -191,7 +253,7 @@ SOURCE OPTIONS:
   -a, --save-novel <ID>    Save a novel by its ID
                              Lazy mode: never (not supported)
                              Can be specified multiple times
-  -s, --save-series <ID>   Save all public novels in a series by ID (beta)
+  -s, --save-series <ID>   Save all public novels in a series by ID
                              Lazy mode: always (full supported)
                              Can be specified multiple times
   -A, --save-author <ID>   Save all public novels published by an author
@@ -262,7 +324,6 @@ download_novel() {
 
 		declare -A novel
 		parsenovel "$tmp" novel
-
 		if [ -z "${novel[content]}" ]; then
 			echo "[warning] empty novel content detected, but server responed a success hdr."
 			[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
@@ -345,14 +406,19 @@ save_series() {
 	local id="$1"
 	local page='0'
 
-	local novels works_length tmp total title
+	local novels works_length tmp total title authorid
+	declare -A author_info
 
 	tmp=`get_series_info "$id"`
 	parsehdr "$tmp" || exit 1
 
+	authorid=`jq -r .body.userId <<< "$tmp"`
 	total=`jq .body.displaySeriesContentCount <<< "$tmp"`
 	title=`jq -r .body.title <<< "$tmp"`
-	echo "[info] series '${title}' ($id) has $total novels"
+
+	pixiv_get_user_info "$authorid" author_info || pixiv_errquit pixiv_get_user_info
+
+	echo "[info] series '${title}' ($id) by '${author_info[name]}' has $total novels"
 
 	while true ; do
 		novels=`ls_novels_by_series "$id" "$page"`
@@ -367,8 +433,10 @@ save_series() {
 			metastr=`echo "$novels" | jq .[${i}]`
 			declare -A novel_meta
 			parsenovelmeta "$metastr" novel_meta
-			meta[series]="$id"
-			meta[series_name]="$title"
+			novel_meta[series]="$id"
+			novel_meta[series_name]="$title"
+			novel_meta[author]="${author_info[name]}"
+			novel_meta[authorid]="$authorid"
 			download_novel "by-series" novel_meta
 		done
 

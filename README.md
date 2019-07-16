@@ -85,6 +85,8 @@ You may have noticed the uppercase letters before each novel in the output, whic
 
 - [x] Save novels from author userid
 
-- [x] Save novels from series id (beta)
+- [x] Save novels from series id
 
 - [ ] Implement all unimplemented options (see `(not impl)` in `-h` usage)
+
+- [ ] **Refactor ugly old pixiv functions implementations**
