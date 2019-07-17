@@ -34,18 +34,31 @@ json_has() {
 }
 
 json_get_object() {
-	declare -n  __msg="$3"
-	__msg=`jq "$2" <<< "$1"`
+	declare -n  __msg="${3}"
+	__msg=`jq -e ".${2} // empty" <<< "${1}"`
 }
 
 json_get_string() {
-	declare -n  __msg="$3"
-	__msg=`jq -e -r "$2 // empty" <<< "$1"`
+	declare -n  __msg="${3}"
+	__msg=`jq -e -r ".${2} // empty" <<< "${1}"`
 }
 
 json_get_integer() {
-	declare -n  __msg="$3"
-	__msg=`jq "$2 | tonumber" <<< "$1"`
+	declare -n  __msg="${3}"
+	__msg=`jq ".${2} | tonumber" <<< "${1}"`
+}
+
+json_is_true() {
+	jq -e ".${2}" <<< "${1}" > /dev/null
+}
+
+json_array_n_items() {
+	jq ".${2} | length" <<< "${1}"
+}
+
+json_array_get_item() {
+	declare -n  __msg_="${3}"
+	json_get_object "${1}" "[${2}]" __msg_
 }
 
 pixiv_error=''
@@ -55,9 +68,9 @@ __pixiv_parsehdr() {
 	declare -n  __msg="$2"
 
 	if json_has "$1" error ; then
-		json_get_object "$1" .error tmp
-		if [ "$tmp" = "true" ]; then
-			json_get_string "$1" .message tmp
+		if json_is_true "$1" error ; then
+			__msg="server error"
+			json_get_string "$1" message tmp
 			[ -n "$tmp" ] && __msg="server respond: $tmp"
 			return 1
 		fi
@@ -83,9 +96,9 @@ pixiv_get_user_info() {
 	__pixiv_parsehdr "$tmp" pixiv_error || return 1
 
 	__meta[id]="$userid"
-	json_get_string "$tmp" .body.name __meta[name]
-	json_get_object "$tmp" .body.isFollowed __meta[followed]
-	json_get_object "$tmp" .body.isMypixiv __meta[my]
+	json_get_string "$tmp" body.name __meta[name]
+	json_get_object "$tmp" body.isFollowed __meta[followed]
+	json_get_object "$tmp" body.isMypixiv __meta[my]
 	return 0
 }
 
@@ -98,9 +111,9 @@ pixiv_get_series_info() {
 	tmp=`sendpost "ajax/novel/series/${seriesid}"`
 	__pixiv_parsehdr "$tmp" pixiv_error || return 1
 
-	json_get_integer "$tmp" .body.userId __meta[authorid]
-	json_get_integer "$tmp" .body.displaySeriesContentCount __meta[total]
-	json_get_string "$tmp" .body.title __meta[title]
+	json_get_integer "$tmp" body.userId __meta[authorid]
+	json_get_integer "$tmp" body.displaySeriesContentCount __meta[total]
+	json_get_string "$tmp" body.title __meta[title]
 	return 0
 }
 
