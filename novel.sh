@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SCRIPT_VERSION='0.1.5'
+SCRIPT_VERSION='0.1.8'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pixiv_novels/'
