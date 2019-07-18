@@ -117,6 +117,20 @@ pixiv_get_series_info() {
 	return 0
 }
 
+pixiv_list_novels_by_series() {
+	local seriesid="$1"
+	local offset=$(( ${NOVELS_PER_PAGE} * ${2:-0} ))
+	declare -n  __novels="$3"
+
+	local tmp
+
+	tmp=`sendpost "ajax/novel/series_content/${seriesid}?limit=${NOVELS_PER_PAGE}&last_order=${offset}&order_by=asc"`
+	__pixiv_parsehdr "$tmp" pixiv_error || return 1
+
+	json_get_object "$tmp" body.seriesContents __novels
+	return 0
+}
+
 # TODO: refactor ugly old pixiv functions implementations
 
 ls_novels() {
@@ -129,12 +143,6 @@ ls_novels_by_author() {
 	local userid="$1"
 	local page="${2:-0}"
 	sendpost "touch/ajax/user/novels?id=${userid}&p=${page}" mobile
-}
-
-ls_novels_by_series() {
-	local seriesid="$1"
-	local offset=$(( ${NOVELS_PER_PAGE} * ${2:-0} ))
-	sendpost "ajax/novel/series_content/${seriesid}?limit=${NOVELS_PER_PAGE}&last_order=${offset}&order_by=asc"
 }
 
 get_novel() {
@@ -203,17 +211,6 @@ __pnm_series_try1() {
 	return 1
 }
 
-__pnm_timestamp() {
-	declare -n  __meta_="$2"
-	local tmp
-	tmp=`echo "$1" | jq -e '.reuploadTimestamp'`
-	if [ "$?" = '0' -a "$tmp" != 'null' ]; then
-		__meta_[timestamp]="$tmp"
-		return 0
-	fi
-	return 1
-}
-
 parsenovelmeta() {
 	declare -n  __meta="$2"
 
@@ -226,8 +223,6 @@ parsenovelmeta() {
 	__meta[series]=''
 	__pnm_series_try0 "$1" __meta || \
 		__pnm_series_try1 "$1" __meta
-
-	__pnm_timestamp "$1" __meta
 	return 0
 }
 
@@ -438,22 +433,27 @@ save_series() {
 	echo "[info] series '${series_info[title]}' ($id) by '${author_info[name]}' has ${series_info[total]} novels"
 
 	while true ; do
-		novels=`ls_novels_by_series "$id" "$page"`
-		parsehdr "$novels" || exit 1
-
-		novels=`jq .body.seriesContents	<<< "$novels"`
-		works_length=`jq '. | length' <<< "$novels"`
+		pixiv_list_novels_by_series "$id" "$page" novels
+		works_length=`json_array_n_items "$novels"`
 
 		echo "[info] series page: $page, in this page: ${works_length}"
 
 		for i in `seq 0 $(( $works_length - 1 ))` ; do
-			metastr=`echo "$novels" | jq .[${i}]`
+			json_array_get_item "$novels" "$i" tmp
+
 			declare -A novel_meta
-			parsenovelmeta "$metastr" novel_meta
+
+			json_get_integer "$tmp" id                 novel_meta[id]
+			json_get_string "$tmp"  title              novel_meta[title]
+			json_get_string "$tmp"  userName           novel_meta[author]
+			json_get_integer "$tmp" userId             novel_meta[authorid]
+			json_get_integer "$tmp" reuploadTimestamp  novel_meta[timestamp]
+
 			novel_meta[series]="$id"
 			novel_meta[series_name]="${series_info[title]}"
 			novel_meta[author]="${author_info[name]}"
 			novel_meta[authorid]="${series_info[authorid]}"
+
 			download_novel "by-series" novel_meta
 		done
 

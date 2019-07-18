@@ -91,4 +91,6 @@ You may have noticed the uppercase letters before each novel in the output, whic
 
 - [ ] Implement all unimplemented options (see `(not impl)` in `-h` usage)
 
-- [ ] **Refactor ugly old pixiv functions implementations**
+- [ ] **Refactor ugly old pixiv functions implementations** (IN-PROGRESS)
+
+- [ ] Save novels from private (non-public) bookmarks
