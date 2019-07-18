@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-SCRIPT_VERSION='0.1.8'
+SCRIPT_VERSION='0.2.1'
 
 NOVELS_PER_PAGE='24'
-DIR_PREFIX='pixiv_novels/'
+DIR_PREFIX='pvnovels/'
 COOKIE=""
 USER_ID=""
 
@@ -81,6 +81,22 @@ __pixiv_parsehdr() {
 	return 0
 }
 
+__pixiv_parsehdr_mobile() {
+	local tmp
+	declare -n  __msg="$2"
+
+	if json_has "$1" isSucceed ; then
+		if ! json_is_true "$1" isSucceed ; then
+			__msg="server error (mobile mode)"
+			return 1
+		fi
+	else
+		__msg="network error"
+		return 1
+	fi
+	return 0
+}
+
 pixiv_errquit() {
 	echo "[error] ${1}: ${pixiv_error}"
 	exit 1
@@ -96,9 +112,9 @@ pixiv_get_user_info() {
 	__pixiv_parsehdr "$tmp" pixiv_error || return 1
 
 	__meta[id]="$userid"
-	json_get_string "$tmp" body.name __meta[name]
+	json_get_string "$tmp" body.name       __meta[name]
 	json_get_object "$tmp" body.isFollowed __meta[followed]
-	json_get_object "$tmp" body.isMypixiv __meta[my]
+	json_get_object "$tmp" body.isMypixiv  __meta[my]
 	return 0
 }
 
@@ -111,15 +127,63 @@ pixiv_get_series_info() {
 	tmp=`sendpost "ajax/novel/series/${seriesid}"`
 	__pixiv_parsehdr "$tmp" pixiv_error || return 1
 
-	json_get_integer "$tmp" body.userId __meta[authorid]
+	json_get_integer "$tmp" body.userId                    __meta[authorid]
 	json_get_integer "$tmp" body.displaySeriesContentCount __meta[total]
-	json_get_string "$tmp" body.title __meta[title]
+	json_get_string "$tmp"  body.title                     __meta[title]
 	return 0
 }
 
+## pixiv_list_novels_by_bookmarks
+#    userid - save bookmarks from this user.
+#    offset - from 0, the page offset.
+#    rest - 'show' for public novels or 'hide' for private novels
+#    __novels - a pointer to recv novels list for this page
+#    __total - a pointer to recv total number of novels (only when offset==0)
+pixiv_list_novels_by_bookmarks() {
+	local userid="$1"
+	local offset=$(( ${NOVELS_PER_PAGE} * ${2} ))
+	local rest="${3:-show}"
+	declare -n  __novels="$4"
+	declare -n  __total="$5"
+
+	local tmp
+
+	tmp=`sendpost "ajax/user/${userid}/novels/bookmarks?tag=&offset=${offset}&limit=${NOVELS_PER_PAGE}&rest=${rest}"`
+	__pixiv_parsehdr "$tmp" pixiv_error || return 1
+
+	json_get_object "$tmp" body.works __novels
+	[ "$offset" = "0" ] && json_get_integer "$tmp" body.total __total
+	return 0
+}
+
+## pixiv_list_novels_by_author
+#    userid - author userid
+#    page - the page number, from 0.
+#    __novels - a pointer to recv novels list for this page
+#    __page_number - a pointer to recv total number of novels (only when page==0)
+pixiv_list_novels_by_author() {
+	local userid="$1"
+	local page="${2}"
+	declare -n  __novels="$3"
+	declare -n  __page_number="$4"
+
+	local tmp
+
+	tmp=`sendpost "touch/ajax/user/novels?id=${userid}&p=${page}" mobile`
+	__pixiv_parsehdr_mobile "$tmp" pixiv_error || return 1
+
+	json_get_object "$tmp" novels __novels
+	[ "$page" = "1" ] && json_get_integer "$tmp" lastPage __page_number
+	return 0
+}
+
+## pixiv_list_novels_by_bookmarks
+#    seriesid - the series ID
+#    offset - from 0, the page offset.
+#    __novels - a pointer to recv novels list for this page
 pixiv_list_novels_by_series() {
 	local seriesid="$1"
-	local offset=$(( ${NOVELS_PER_PAGE} * ${2:-0} ))
+	local offset=$(( ${NOVELS_PER_PAGE} * ${2} ))
 	declare -n  __novels="$3"
 
 	local tmp
@@ -131,105 +195,31 @@ pixiv_list_novels_by_series() {
 	return 0
 }
 
-# TODO: refactor ugly old pixiv functions implementations
-
-ls_novels() {
-	local userid="$1"
-	local offset=$(( ${NOVELS_PER_PAGE} * ${2} ))
-	sendpost "ajax/user/${userid}/novels/bookmarks?tag=&offset=${offset}&limit=${NOVELS_PER_PAGE}&rest=show"
-}
-
-ls_novels_by_author() {
-	local userid="$1"
-	local page="${2:-0}"
-	sendpost "touch/ajax/user/novels?id=${userid}&p=${page}" mobile
-}
-
-get_novel() {
+pixiv_get_novel() {
 	local novelid="$1"
-	sendpost "ajax/novel/${novelid}"
-}
+	declare -n  __novel="$2"
 
-parsehdr() {
 	local tmp
 
-	tmp=`jq -e .isSucceed <<< "$1"`
-	if [ "$?" = '0' ]; then
-		if [ "$tmp" != "true" ]; then
-			echo "[error] error detected when parsing hdr (mobile mode)"
-			return 1
-		fi
-	else
-		tmp=`jq .error <<< "$1"`
-		if [ "$tmp" = "true" -o "$?" != "0" ]; then
-			tmp=`echo "$1" | jq .message`
-			echo "[error] error detected when parsing hdr, server respond: $tmp"
-			return 1
+	tmp=`sendpost "ajax/novel/${novelid}"`
+	__pixiv_parsehdr "$tmp" pixiv_error || return 1
+
+	json_get_string "$tmp" body.content __novel
+
+	if [ -n "$3" ]; then
+		declare -n __meta="$3"
+		json_get_string "$tmp"  body.uploadDate __meta[uploadDate]
+		json_get_integer "$tmp" body.id         __meta[id]
+		json_get_string "$tmp"  body.title      __meta[title]
+		json_get_string "$tmp"  body.userName   __meta[author]
+		json_get_integer "$tmp" body.userId     __meta[authorid]
+		if json_has "$tmp" body.seriesNavData ; then
+			json_get_integer "$tmp" body.seriesNavData.seriesId __meta[series]
+			json_get_string "$tmp"  body.seriesNavData.title    __meta[series_name]
 		fi
 	fi
 
 	return 0
-}
-
-parsenovelmetamobile() {
-	declare -n  __meta="$2"
-	__meta[id]=`echo "$1" | jq '.id | tonumber'`
-	__meta[title]=`echo "$1" | jq -r '.title'`
-	__meta[author]=`echo "$1" | jq -r '.user_name'`
-	__meta[authorid]=`echo "$1" | jq '.user_id | tonumber'`
-	__meta[text_count]=`echo "$1" | jq '.text_length'`
-
-	local tmp=`echo "$1" | jq '.series'`
-	if [ "$tmp" = 'null' ]; then
-		__meta[series]=''
-	else
-		__meta[series]=`echo "$1" | jq '.series.id | tonumber'`
-		__meta[series_name]=`echo "$1" | jq -r '.series.title'`
-	fi
-}
-
-__pnm_series_try0() {
-	declare -n  __meta_="$2"
-	local tmp
-	tmp=`echo "$1" | jq -e '.seriesId'`
-	if [ "$?" = '0' -a "$tmp" != 'null' ]; then
-		__meta_[series]=`echo "$1" | jq '.seriesId | tonumber'`
-		__meta_[series_name]=`echo "$1" | jq -r '.seriesTitle'`
-		return 0
-	fi
-	return 1
-}
-__pnm_series_try1() {
-	declare -n  __meta_="$2"
-	local tmp
-	tmp=`echo "$1" | jq -e '.seriesNavData'`
-	if [ "$?" = '0' -a "$tmp" != 'null' ]; then
-		__meta_[series]=`echo "$tmp" | jq '.seriesId | tonumber'`
-		__meta_[series_name]=`echo "$tmp" | jq -r '.title'`
-		return 0
-	fi
-	return 1
-}
-
-parsenovelmeta() {
-	declare -n  __meta="$2"
-
-	__meta[id]=`echo "$1" | jq '.id | tonumber'`
-	__meta[title]=`echo "$1" | jq -r '.title'`
-	__meta[author]=`echo "$1" | jq -r '.userName'`
-	__meta[authorid]=`echo "$1" | jq '.userId | tonumber'`
-	__meta[text_count]=`echo "$1" | jq '.textCount'`
-
-	__meta[series]=''
-	__pnm_series_try0 "$1" __meta || \
-		__pnm_series_try1 "$1" __meta
-	return 0
-}
-
-parsenovel() {
-	declare -n  __data="$2"
-	__data[content]=`echo "$1" | jq -r '.content'`
-	__data[date]=`echo "$1" | jq -r '.uploadDate'`
 }
 
 usage() {
@@ -257,10 +247,11 @@ MISC OPTIONS:
                              (For series, pixiv can give us a timestamp, lazy
                              mode enabled always and won't use textCount)
   -d, --no-series          Save novel to author's directory, no series subdir
-  -o, --output <DIR>       default: 'pixiv_novels/'
+  -o, --output <DIR>       default: 'pvnovels/'
   -E, --ignore-empty       Do not stop while meeting a empty content
   -w, --window-size <NPP>  default: 24, how many items per page
                              (Not available in --save-author and --save-novel)
+  -u, --disable-lazy-mode  Disable all lazy modes unconditionally (not impl)
   --strip-nonascii-title   Strip non-ASCII title characters (not impl)
   --download-inline-image  (not impl)
   --parse-pixiv-chapters   (not impl)
@@ -286,17 +277,23 @@ EXAMPLES:
 EOF
 }
 
+## download_novel
+#    subdir - the subdir name
+#    meta - pointer to novel_meta associative array
+#    lazymode - 'always', 'textcount' or 'disable'
+#    lazytag - add a tag to filename for lazy mode
+#    extra_flags - append extra flag
 download_novel() {
-	local flag_pad="     "
-	local flag_max_len=5
 	local sdir="$1"
 	declare -n  meta="$2"
+	local lazymode="$3"
+	local lazytag="$4"
+	local flags="N${5}"
+	local flag_pad="    "
+	local flag_max_len=4
+	local ignore='0'
 
-	local ignore flags series_dir dir old_text_count old_ts tmp
-
-	ignore='0'
-	flags='N'
-	series_dir=''
+	local series_dir filename novel
 
 	if [ "${NO_SERIES}" = '0' ]; then
 		if [ -z "${meta[series]}" ]; then
@@ -307,68 +304,47 @@ download_novel() {
 		fi
 	fi
 
-	dir="${DIR_PREFIX}/${sdir}/${meta[authorid]}-${meta[author]}${series_dir}/"
-	if [ -f "${dir}/${meta[id]}-v1.nmeta" ]; then
-		if [ -n "${meta[timestamp]}" ]; then
-			flags="${flags}T"
-			old_ts=`cat "${dir}/${meta[id]}-v1.nmeta" | jq -e .reuploadTimestamp`
+	filename="${DIR_PREFIX}/${sdir}/${meta[authorid]}-${meta[author]}${series_dir}/${meta[id]}-${meta[title]}${lazytag}.txt"
+	[ -n "$lazytag" -a -f "${filename}" ] && ignore=1
 
-			if [ "$old_ts" = "${meta[timestamp]}" ]; then
-				flags="${flags}I"
-				ignore=1
-			else
-				flags="${flags}U"
-			fi
-		else
-			old_text_count=`cat "${dir}/${meta[id]}-v1.nmeta" | jq -e .textCount`
-			[ "$?" != '0' ] && old_text_count=`cat "${dir}/${meta[id]}-v1.nmeta" | jq -e .text_length`
+	case "$lazymode" in
+	always) ;;
+	textcount) [ "$LAZY_TEXT_COUNT" = '1' ] || ignore='0' ;;
+	*) ignore='0' ;;
+	esac
 
-			if [ "$old_text_count" = "${meta[text_count]}" -a "$LAZY_TEXT_COUNT" = '1' ]; then
-				flags="${flags}I"
-				ignore=1
-			else
-				flags="${flags}U"
-			fi
-		fi
-	fi
+	[ "$ignore" = '1' ] && flags="${flags}I"
 
 	flags="${flags}${flag_pad}"
 	echo "=> ${flags:0:${flag_max_len}} ${meta[id]} '${meta[title]}' ${meta[author]}"
 
 	if [ "$ignore" = '0' ]; then
-		tmp=`get_novel ${meta[id]}`
-		parsehdr "$tmp" || exit 1
-		tmp=`echo "$tmp" | jq .body`
-
-		declare -A novel
-		parsenovel "$tmp" novel
-		if [ -z "${novel[content]}" ]; then
+		pixiv_get_novel "${meta[id]}" novel || pixiv_errquit pixiv_get_novel
+		if [ -z "${novel}" ]; then
 			echo "[warning] empty novel content detected, but server responed a success hdr."
 			[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
 		fi
 
-		mkdir -p "$dir"
-		echo "${novel[content]}" > "${dir}/${meta[id]}-${meta[title]}-${novel[date]}.txt"
-		echo "$metastr" > "${dir}/${meta[id]}-v1.nmeta"
+		mkdir -p "`dirname "${filename}"`"
+		cat /dev/null > "${filename}"
+		for i in "${!novel_meta[@]}"; do
+			echo "${i}: ${novel_meta[$i]}" >> "${filename}"
+		done
+		echo "=============================" >> "${filename}"
+		echo "${novel}" >> "${filename}"
 	fi
 }
 
 save_id() {
 	local id="$1"
 	local flags='N'
+	local flag_pad="    "
+	local flag_max_len=4
 
-	local tmp series_dir dir
-
-	tmp=`get_novel ${id}`
-	parsehdr "$tmp" || exit 1
-
-	tmp=`echo "$tmp" | jq .body`
-
+	local series_dir filename content
 	declare -A meta
-	declare -A novel
-	parsenovelmeta "$tmp" meta
-	parsenovel "$tmp" novel
 
+	pixiv_get_novel "$id" content meta || pixiv_errquit pixiv_get_novel
 	if [ "${NO_SERIES}" = '0' ]; then
 		if [ -z "${meta[series]}" ]; then
 			series_dir=""
@@ -377,42 +353,98 @@ save_id() {
 			flags="${flags}S"
 		fi
 	fi
-	dir="${DIR_PREFIX}/singles/${meta[authorid]}-${meta[author]}${series_dir}/"
 
-	echo "=> ${flags}  ${meta[id]} '${meta[title]}' ${meta[author]}"
+	filename="${DIR_PREFIX}/singles/${meta[authorid]}-${meta[author]}${series_dir}/${meta[id]}-${meta[title]}.txt"
 
-	if [ -z "${novel[content]}" ]; then
+	flags="${flags}${flag_pad}"
+	echo "=> ${flags:0:${flag_max_len}} ${meta[id]} '${meta[title]}' ${meta[author]}"
+
+	if [ -z "$content" ]; then
 		echo "[warning] empty novel content detected, but server responed a success hdr."
 		[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
 	fi
 
-	mkdir -p "$dir"
-	echo "${novel[content]}" > "${dir}/${meta[id]}-${meta[title]}-${novel[date]}.txt"
+	mkdir -p "`dirname "${filename}"`"
+	cat /dev/null > "${filename}"
+	for i in "${!meta[@]}"; do
+		echo "${i}: ${meta[$i]}" >> "${filename}"
+	done
+	echo "=============================" >> "${filename}"
+	echo "${content}" >> "${filename}"
+}
+
+save_my_bookmarks() {
+	local page='0'
+	local total=''
+
+	local works works_length tmp
+
+	while true ; do
+		pixiv_list_novels_by_bookmarks "${USER_ID}" "$page" show works total || pixiv_errquit pixiv_list_novels_by_bookmarks
+		works_length=`json_array_n_items "$works"`
+
+		echo "[info] total: ${total}, processing page: ${page}, in this page: ${works_length}"
+
+		for i in `seq 0 $(( $works_length - 1 ))` ; do
+			json_array_get_item "$works" "$i" tmp
+
+			unset novel_meta
+			declare -A novel_meta
+
+			json_get_integer "$tmp" id        novel_meta[id]
+			json_get_string "$tmp"  title     novel_meta[title]
+			json_get_string "$tmp"  userName  novel_meta[author]
+			json_get_integer "$tmp" userId    novel_meta[authorid]
+			json_get_integer "$tmp" textCount novel_meta[text_count]
+
+			if json_has "$tmp" seriesId ; then
+				json_get_integer "$tmp" seriesId    novel_meta[series]
+				json_get_string "$tmp"  seriesTitle novel_meta[series_name]
+			fi
+
+			tmp=''
+			[ -n "${novel_meta[text_count]}" ] && tmp="-tc${novel_meta[text_count]}"
+			download_novel "bookmarks/$USER_ID/" novel_meta textcount "${tmp}"
+		done
+
+		page=$(( $page + 1 ))
+		tmp=$(( $page * $NOVELS_PER_PAGE ))
+		[ "$tmp" -ge "$total" ] && break
+	done
 }
 
 save_author() {
 	local id="$1"
-	local page_nember=''
 	local page_cur='1'
 
-	local novels works works_length
+	local works works_length page_nember tmp
 
 	while true ; do
-		novels=`ls_novels_by_author "$id" "$page_cur"`
-		parsehdr "$novels" || exit 1
-
-		[ -z "$page_nember" ] && page_nember=`jq .lastPage <<< "$novels"`
-
-		works=`jq .novels <<< "$novels"`
-		works_length=`jq '. | length' <<< "$works"`
+		pixiv_list_novels_by_author "$id" "$page_cur" works page_nember || pixiv_errquit pixiv_list_novels_by_author
+		works_length=`json_array_n_items "$works"`
 
 		echo "[info] page: $page_cur/$page_nember, in this page: ${works_length}"
 
 		for i in `seq 0 $(( $works_length - 1 ))` ; do
-			metastr=`echo "$works" | jq .[${i}]`
+			json_array_get_item "$works" "$i" tmp
+
+			unset novel_meta
 			declare -A novel_meta
-			parsenovelmetamobile "$metastr" novel_meta
-			download_novel "by-author" novel_meta
+
+			json_get_integer "$tmp" id          novel_meta[id]
+			json_get_string "$tmp"  title       novel_meta[title]
+			json_get_string "$tmp"  user_name   novel_meta[author]
+			json_get_integer "$tmp" user_id     novel_meta[authorid]
+			json_get_integer "$tmp" text_length novel_meta[text_count]
+
+			if json_has "$tmp" series ; then
+				json_get_integer "$tmp" series.id    novel_meta[series]
+				json_get_string "$tmp"  series.title novel_meta[series_name]
+			fi
+
+			tmp=''
+			[ -n "${novel_meta[text_count]}" ] && tmp="-tc${novel_meta[text_count]}"
+			download_novel "by-author" novel_meta textcount "$tmp"
 		done
 
 		page_cur=$(( $page_cur + 1 ))
@@ -424,7 +456,7 @@ save_series() {
 	local id="$1"
 	local page='0'
 
-	local novels works_length tmp
+	local novels works_length tmp extra_flags
 	declare -A series_info author_info
 
 	pixiv_get_series_info "$id" series_info || pixiv_errquit pixiv_get_series_info
@@ -433,7 +465,7 @@ save_series() {
 	echo "[info] series '${series_info[title]}' ($id) by '${author_info[name]}' has ${series_info[total]} novels"
 
 	while true ; do
-		pixiv_list_novels_by_series "$id" "$page" novels
+		pixiv_list_novels_by_series "$id" "$page" novels || pixiv_errquit pixiv_list_novels_by_series
 		works_length=`json_array_n_items "$novels"`
 
 		echo "[info] series page: $page, in this page: ${works_length}"
@@ -441,55 +473,30 @@ save_series() {
 		for i in `seq 0 $(( $works_length - 1 ))` ; do
 			json_array_get_item "$novels" "$i" tmp
 
+			unset novel_meta
 			declare -A novel_meta
 
-			json_get_integer "$tmp" id                 novel_meta[id]
-			json_get_string "$tmp"  title              novel_meta[title]
-			json_get_string "$tmp"  userName           novel_meta[author]
-			json_get_integer "$tmp" userId             novel_meta[authorid]
-			json_get_integer "$tmp" reuploadTimestamp  novel_meta[timestamp]
+			json_get_integer "$tmp" id                novel_meta[id]
+			json_get_string "$tmp"  title             novel_meta[title]
+			json_get_integer "$tmp" reuploadTimestamp novel_meta[timestamp]
 
 			novel_meta[series]="$id"
 			novel_meta[series_name]="${series_info[title]}"
 			novel_meta[author]="${author_info[name]}"
 			novel_meta[authorid]="${series_info[authorid]}"
 
-			download_novel "by-series" novel_meta
+			tmp=''
+			extra_flags=''
+			if [ -n "${novel_meta[timestamp]}" ]; then
+				tmp="-ts${novel_meta[timestamp]}"
+				extra_flags='T'
+			fi
+			download_novel "by-series" novel_meta always "$tmp" "$extra_flags"
 		done
 
 		page=$(( $page + 1 ))
 		tmp=$(( $page * $NOVELS_PER_PAGE ))
 		[ "$tmp" -ge "${series_info[total]}" ] && break
-	done
-}
-
-save_my_bookmarks() {
-	local page='0'
-	local total=''
-
-	local data works works_length tmp metastr
-
-	while true ; do
-		data=`ls_novels "${USER_ID}" "$page"`
-		parsehdr "$data" || exit 1
-
-		[ -z "$total" ] && total=`echo "$data" | jq .body.total`
-
-		works=`echo "$data" | jq .body.works`
-		works_length=`echo "$works" | jq '. | length'`
-
-		echo "[info] total: ${total}, processing page: ${page}, in this page: ${works_length}"
-
-		for i in `seq 0 $(( $works_length - 1 ))` ; do
-			metastr=`echo "$works" | jq .[${i}]`
-			declare -A novel_meta
-			parsenovelmeta "$metastr" novel_meta
-			download_novel "bookmarks/$USER_ID/" novel_meta
-		done
-
-		page=$(( $page + 1 ))
-		tmp=$(( $page * $NOVELS_PER_PAGE ))
-		[ "$tmp" -ge "$total" ] && break
 	done
 }
 

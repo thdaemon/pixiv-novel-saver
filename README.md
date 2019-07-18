@@ -73,7 +73,9 @@ You may have noticed the uppercase letters before each novel in the output, whic
 
 - `I` on Lazy mode, this novel have been ignored.
 
-- `U` This novel have been updated. It means that this novel will be re-downloaded or a new version will be saved.
+## Notice
+
+0.2.x version is not compatible with 0.1.x version. So in order to avoid trouble, the default save location has also changed.
 
 ## TODO
 
@@ -91,6 +93,6 @@ You may have noticed the uppercase letters before each novel in the output, whic
 
 - [ ] Implement all unimplemented options (see `(not impl)` in `-h` usage)
 
-- [ ] **Refactor ugly old pixiv functions implementations** (IN-PROGRESS)
+- [x] Refactor ugly old pixiv functions implementations
 
 - [ ] Save novels from private (non-public) bookmarks
