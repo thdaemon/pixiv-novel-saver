@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SCRIPT_VERSION='0.2.1'
+SCRIPT_VERSION='0.2.2'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -208,11 +208,12 @@ pixiv_get_novel() {
 
 	if [ -n "$3" ]; then
 		declare -n __meta="$3"
-		json_get_string "$tmp"  body.uploadDate __meta[uploadDate]
-		json_get_integer "$tmp" body.id         __meta[id]
-		json_get_string "$tmp"  body.title      __meta[title]
-		json_get_string "$tmp"  body.userName   __meta[author]
-		json_get_integer "$tmp" body.userId     __meta[authorid]
+		json_get_string "$tmp"  body.uploadDate  __meta[uploadDate]
+		json_get_integer "$tmp" body.id          __meta[id]
+		json_get_string "$tmp"  body.title       __meta[title]
+		json_get_string "$tmp"  body.userName    __meta[author]
+		json_get_integer "$tmp" body.userId      __meta[authorid]
+		json_get_string "$tmp"  body.description __meta[description]
 		if json_has "$tmp" body.seriesNavData ; then
 			json_get_integer "$tmp" body.seriesNavData.seriesId __meta[series]
 			json_get_string "$tmp"  body.seriesNavData.title    __meta[series_name]
@@ -294,6 +295,7 @@ download_novel() {
 	local ignore='0'
 
 	local series_dir filename novel
+	declare -A nmeta
 
 	if [ "${NO_SERIES}" = '0' ]; then
 		if [ -z "${meta[series]}" ]; then
@@ -319,16 +321,20 @@ download_novel() {
 	echo "=> ${flags:0:${flag_max_len}} ${meta[id]} '${meta[title]}' ${meta[author]}"
 
 	if [ "$ignore" = '0' ]; then
-		pixiv_get_novel "${meta[id]}" novel || pixiv_errquit pixiv_get_novel
+		pixiv_get_novel "${meta[id]}" novel nmeta || pixiv_errquit pixiv_get_novel
 		if [ -z "${novel}" ]; then
 			echo "[warning] empty novel content detected, but server responed a success hdr."
 			[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
 		fi
 
+		for i in "${!nmeta[@]}"; do
+			[ -z "${meta[$i]}" ] && meta[$i]="${nmeta[$i]}"
+		done
+
 		mkdir -p "`dirname "${filename}"`"
 		cat /dev/null > "${filename}"
-		for i in "${!novel_meta[@]}"; do
-			echo "${i}: ${novel_meta[$i]}" >> "${filename}"
+		for i in "${!meta[@]}"; do
+			echo "${i}: ${meta[$i]}" >> "${filename}"
 		done
 		echo "=============================" >> "${filename}"
 		echo "${novel}" >> "${filename}"
