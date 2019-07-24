@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SCRIPT_VERSION='0.2.3'
+SCRIPT_VERSION='0.2.4'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -9,6 +9,7 @@ USER_ID=""
 
 ABORT_WHILE_EMPTY_CONTENT=1
 LAZY_TEXT_COUNT=0
+NO_LAZY_UNCON=0
 NO_SERIES=0
 
 bookmarks=0
@@ -252,7 +253,7 @@ MISC OPTIONS:
   -E, --ignore-empty       Do not stop while meeting a empty content
   -w, --window-size <NPP>  default: 24, how many items per page
                              (Not available in --save-author and --save-novel)
-  -u, --disable-lazy-mode  Disable all lazy modes unconditionally (not impl)
+  -u, --disable-lazy-mode  Disable all lazy modes unconditionally
   --strip-nonascii-title   Strip non-ASCII title characters (not impl)
   --download-inline-image  (not impl)
   --parse-pixiv-chapters   (not impl)
@@ -336,6 +337,8 @@ download_novel() {
 	textcount) [ "$LAZY_TEXT_COUNT" = '1' ] || ignore='0' ;;
 	*) ignore='0' ;;
 	esac
+
+	[ "$NO_LAZY_UNCON" = '1' ] && ignore='0'
 
 	[ "$ignore" = '1' ] && flags="${flags}I"
 
@@ -520,6 +523,9 @@ while [ "$#" -gt 0 ]; do
 	case "$1" in
 	-c|--lazy-text-count)
 		LAZY_TEXT_COUNT=1
+		;;
+	-u|--disable-lazy-mode)
+		NO_LAZY_UNCON=1
 		;;
 	-d|--no-series)
 		NO_SERIES=1

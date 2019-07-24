@@ -2,9 +2,9 @@
 
 A script to save your loved novels to local disk.
 
-**Thanks to the authors for their creativity!**
+**Thanks to the authors for their creativity! And be sure to respect the author's work!**
 
-**This tool is designed to help save our favorite novels locally so that they can be read on a variety of devices. Please DO NOT distribute the novels until you have permission from the author.**
+**This tool is designed to help save our favorite novels locally so that they can be read on a variety of devices. Please NEVER distribute the novels until you have permission from the author.**
 
 ## Usage:
 
@@ -60,6 +60,10 @@ Mode|Source|Description
 always (full supported)|`-s, --save-series`|For this source, Pixiv gives us "update time" before getting full content of novel. So lazy mode is always on. Novels will be updated only when the author updates their novel. It will avoid repeated saves after the second time. It's not dangerous.
 text count|`-m, --save-my-bookmarks` and `-A, --save-author`|For this source, Pixiv does NOT give us "update time" before getting full content of novel. However, there are still some ways to allow roughly guessing whether the novel has been updated, such as the number of words, but this is not 100% accurate. `-c` or `--lazy-text-count` option enables "text count" Lazy Mode. It's a little dangerous.
 never (not supported)|`-a, --save-novel`|For this source, lazy mode is impossible.
+
+To disable all lazy modes unconditionally, you can use specify `-u` or `--disable-lazy-mode` option. But usually not needed.
+
+And we recommend that you generally use the option `-c` to enable the "text count" lazy mode to reduce network traffic and Pixiv server stress.
 
 ## Flags
 
