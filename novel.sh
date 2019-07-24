@@ -98,11 +98,16 @@ __pixiv_parsehdr_mobile() {
 	return 0
 }
 
+## pixiv_errquit
+#    name - the name of "subprogram" which throw a error
 pixiv_errquit() {
 	echo "[error] ${1}: ${pixiv_error}"
 	exit 1
 }
 
+## pixiv_get_user_info
+#    userid - the ID of the user
+#    __meta - a pointer to recv info of the user
 pixiv_get_user_info() {
 	local userid="$1"
 	declare -n  __meta="$2"
@@ -119,6 +124,9 @@ pixiv_get_user_info() {
 	return 0
 }
 
+## pixiv_get_series_info
+#    seriesid - the ID of the series
+#    __meta - a pointer to recv info of the series
 pixiv_get_series_info() {
 	local seriesid="$1"
 	declare -n  __meta="$2"
@@ -196,6 +204,10 @@ pixiv_list_novels_by_series() {
 	return 0
 }
 
+## pixiv_get_novel
+#    novelid - the ID of the novel
+#    __novel - a pointer to recv novel content
+#    __meta (optional) - a pointer to recv some novel infomation
 pixiv_get_novel() {
 	local novelid="$1"
 	declare -n  __novel="$2"
@@ -360,6 +372,8 @@ download_novel() {
 	fi
 }
 
+## save_id
+#    id - the novel ID
 save_id() {
 	local id="$1"
 	local flags='N'
