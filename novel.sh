@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SCRIPT_VERSION='0.2.2'
+SCRIPT_VERSION='0.2.3'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -278,6 +278,28 @@ EXAMPLES:
 EOF
 }
 
+## write_file_atom
+#    filename - file name
+#    __kvpair - pointer to a key-value pair to write
+#    content - the content to write
+write_file_atom() {
+	local filename_real="$1"
+	declare -n __kv="$2"
+	local content="$3"
+
+	local filename="${filename_real}.tmp"
+
+	mkdir -p "`dirname "${filename_real}"`"
+	cat /dev/null > "${filename}"
+	for i in "${!__kv[@]}"; do
+		echo "${i}: ${__kv[$i]}" >> "${filename}"
+	done
+	echo "=============================" >> "${filename}"
+	echo "${content}" >> "${filename}"
+
+	mv "${filename}" "${filename_real}"
+}
+
 ## download_novel
 #    subdir - the subdir name
 #    meta - pointer to novel_meta associative array
@@ -331,13 +353,7 @@ download_novel() {
 			[ -z "${meta[$i]}" ] && meta[$i]="${nmeta[$i]}"
 		done
 
-		mkdir -p "`dirname "${filename}"`"
-		cat /dev/null > "${filename}"
-		for i in "${!meta[@]}"; do
-			echo "${i}: ${meta[$i]}" >> "${filename}"
-		done
-		echo "=============================" >> "${filename}"
-		echo "${novel}" >> "${filename}"
+		write_file_atom "$filename" meta "$novel"
 	fi
 }
 
@@ -370,13 +386,7 @@ save_id() {
 		[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
 	fi
 
-	mkdir -p "`dirname "${filename}"`"
-	cat /dev/null > "${filename}"
-	for i in "${!meta[@]}"; do
-		echo "${i}: ${meta[$i]}" >> "${filename}"
-	done
-	echo "=============================" >> "${filename}"
-	echo "${content}" >> "${filename}"
+	write_file_atom "$filename" meta "$novel"
 }
 
 save_my_bookmarks() {
