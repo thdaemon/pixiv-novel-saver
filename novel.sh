@@ -403,7 +403,7 @@ save_id() {
 		[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
 	fi
 
-	write_file_atom "$filename" meta "$novel"
+	write_file_atom "$filename" meta "$content"
 }
 
 save_my_bookmarks() {
