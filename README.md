@@ -99,4 +99,4 @@ You may have noticed the uppercase letters before each novel in the output, whic
 
 - [x] Refactor ugly old pixiv functions implementations
 
-- [ ] Save novels from private (non-public) bookmarks
+- [x] Save novels from private (non-public) bookmarks
