@@ -58,7 +58,7 @@ We support different levels of lazy mode for different sources. There are three 
 Mode|Source|Description
 ----------|------------------|---------
 always (full supported)|`-s, --save-series`|For this source, Pixiv gives us "update time" before getting full content of novel. So lazy mode is always on. Novels will be updated only when the author updates their novel. It will avoid repeated saves after the second time. It's not dangerous.
-text count|`-m, --save-my-bookmarks` and `-A, --save-author`|For this source, Pixiv does NOT give us "update time" before getting full content of novel. However, there are still some ways to allow roughly guessing whether the novel has been updated, such as the number of words, but this is not 100% accurate. `-c` or `--lazy-text-count` option enables "text count" Lazy Mode. It's a little dangerous.
+text count|`-m, --save-my-bookmarks`, `-p, --save-my-private` and `-A, --save-author`|For this source, Pixiv does NOT give us "update time" before getting full content of novel. However, there are still some ways to allow roughly guessing whether the novel has been updated, such as the number of words, but this is not 100% accurate. `-c` or `--lazy-text-count` option enables "text count" Lazy Mode. It's a little dangerous.
 never (not supported)|`-a, --save-novel`|For this source, lazy mode is impossible.
 
 To disable all lazy modes unconditionally, you can use specify `-u` or `--disable-lazy-mode` option. But usually not needed.
@@ -99,4 +99,4 @@ You may have noticed the uppercase letters before each novel in the output, whic
 
 - [x] Refactor ugly old pixiv functions implementations
 
-- [ ] Save novels from private (non-public) bookmarks
+- [x] Save novels from private (non-public) bookmarks

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-SCRIPT_VERSION='0.2.4'
+DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
+
+SCRIPT_VERSION='0.2.5'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -13,6 +15,7 @@ NO_LAZY_UNCON=0
 NO_SERIES=0
 
 bookmarks=0
+private=0
 novels=()
 serieses=()
 authors=()
@@ -23,11 +26,33 @@ authors=()
 }
 
 declare -A useragent
-useragent[desktop]="User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0"
+useragent[desktop]="User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:70.0) Gecko/20100101 Firefox/70.0"
 useragent[mobile]="User-Agent: Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox/68.0"
 
+dbg() {
+	[ "$DEBUG" = '1' ]
+}
+
+printdbg() {
+	echo "$*" >&2
+}
+
+__sendpost() {
+	curl --compressed -s "https://www.pixiv.net/$1" \
+		-H "${useragent["${2:-desktop}"]}" \
+		-H "Accept: application/json" \
+		-H 'Accept-Language: en_US,en;q=0.5' \
+		-H 'Referer: https://www.pixiv.net' \
+		-H 'DNT: 1' \
+		-H "Cookie: ${COOKIE}" \
+		-H 'TE: Trailers'
+}
+
 sendpost() {
-	curl -s "https://www.pixiv.net/$1" -H "${useragent["${2:-desktop}"]}" -H "Accept: application/json" -H 'Accept-Language: en_US,en;q=0.5' --compressed -H 'Referer: https://www.pixiv.net' -H 'DNT: 1' -H "Cookie: ${COOKIE}" -H 'TE: Trailers'
+	dbg && printdbg "> $1"
+	resp=`__sendpost "$@"`
+	dbg && printdbg "$resp" && echo
+	echo "$resp"
 }
 
 json_has() {
@@ -267,17 +292,20 @@ MISC OPTIONS:
                              (Not available in --save-author and --save-novel)
   -u, --disable-lazy-mode  Disable all lazy modes unconditionally
   --strip-nonascii-title   Strip non-ASCII title characters (not impl)
+  --download-cover-image   (not impl)
   --download-inline-image  (not impl)
   --parse-pixiv-chapters   (not impl)
 
 SOURCE OPTIONS:
   -m, --save-my-bookmarks  Save all my bookmarked novels
                              Lazy mode: text count (enable it by -c)
+  -p, --save-my-private    Save all my private bookmarked novels
+                             Lazy mode: text count (enable it by -c)
   -a, --save-novel <ID>    Save a novel by its ID
                              Lazy mode: never (not supported)
                              Can be specified multiple times
   -s, --save-series <ID>   Save all public novels in a series by ID
-                             Lazy mode: always (full supported)
+                             Lazy mode: always (full supported, disable by -u)
                              Can be specified multiple times
   -A, --save-author <ID>   Save all public novels published by an author
                              Lazy mode: text count (enable it by -c)
@@ -409,11 +437,15 @@ save_id() {
 save_my_bookmarks() {
 	local page='0'
 	local total=''
+	local suffix=''
+	local rest="$1"
 
 	local works works_length tmp
 
+	[ "$rest" = 'show' ] || suffix="-$rest"
+
 	while true ; do
-		pixiv_list_novels_by_bookmarks "${USER_ID}" "$page" show works total || pixiv_errquit pixiv_list_novels_by_bookmarks
+		pixiv_list_novels_by_bookmarks "${USER_ID}" "$page" "$rest" works total || pixiv_errquit pixiv_list_novels_by_bookmarks
 		works_length=`json_array_n_items "$works"`
 
 		echo "[info] total: ${total}, processing page: ${page}, in this page: ${works_length}"
@@ -437,7 +469,7 @@ save_my_bookmarks() {
 
 			tmp=''
 			[ -n "${novel_meta[text_count]}" ] && tmp="-tc${novel_meta[text_count]}"
-			download_novel "bookmarks/$USER_ID/" novel_meta textcount "${tmp}"
+			download_novel "bookmarks/${USER_ID}${suffix}/" novel_meta textcount "${tmp}"
 		done
 
 		page=$(( $page + 1 ))
@@ -558,6 +590,9 @@ while [ "$#" -gt 0 ]; do
 	-m|--save-my-bookmarks)
 		bookmarks=1
 		;;
+	-p|--save-my-private)
+		private=1
+		;;
 	-a|--save-novel)
 		novels[${#novels[@]}]="$2"
 		shift
@@ -583,7 +618,12 @@ done
 
 [ "$bookmarks" = '1' ] && {
 	echo "[info] saving my bookmarked novels..."
-	save_my_bookmarks
+	save_my_bookmarks show
+}
+
+[ "$private" = '1' ] && {
+	echo "[info] saving my private bookmarked novels..."
+	save_my_bookmarks hide
 }
 
 [ "${#novels[@]}" = '0' ] || {
