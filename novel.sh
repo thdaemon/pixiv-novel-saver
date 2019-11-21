@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.5'
+SCRIPT_VERSION='0.2.6'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -57,6 +57,10 @@ sendpost() {
 
 json_has() {
 	jq -e "has(\"${2}\")" <<< "$1" > /dev/null
+}
+
+json_has_path() {
+	jq -e ".${2} | has(\"${3}\")" <<< "$1" > /dev/null
 }
 
 json_get_object() {
@@ -237,24 +241,40 @@ pixiv_get_novel() {
 	local novelid="$1"
 	declare -n  __novel="$2"
 
-	local tmp
+	local tmp tags ntags tag tagval tagmeta
 
 	tmp=`sendpost "ajax/novel/${novelid}"`
 	__pixiv_parsehdr "$tmp" pixiv_error || return 1
 
-	json_get_string "$tmp" body.content __novel
+	json_get_object "$tmp" body tmp
+	json_get_string "$tmp" content __novel
 
 	if [ -n "$3" ]; then
 		declare -n __meta="$3"
-		json_get_string "$tmp"  body.uploadDate  __meta[uploadDate]
-		json_get_integer "$tmp" body.id          __meta[id]
-		json_get_string "$tmp"  body.title       __meta[title]
-		json_get_string "$tmp"  body.userName    __meta[author]
-		json_get_integer "$tmp" body.userId      __meta[authorid]
-		json_get_string "$tmp"  body.description __meta[description]
-		if json_has "$tmp" body.seriesNavData ; then
-			json_get_integer "$tmp" body.seriesNavData.seriesId __meta[series]
-			json_get_string "$tmp"  body.seriesNavData.title    __meta[series_name]
+		json_get_string "$tmp"  uploadDate  __meta[uploadDate]
+		json_get_integer "$tmp" id          __meta[id]
+		json_get_string "$tmp"  title       __meta[title]
+		json_get_string "$tmp"  userName    __meta[author]
+		json_get_integer "$tmp" userId      __meta[authorid]
+		json_get_string "$tmp"  description __meta[description]
+
+		if json_has "$tmp" tags ; then
+			tagmeta=''
+
+			json_get_object "$tmp" tags.tags tags
+			ntags=`json_array_n_items "$tags"`
+			for i in `seq 0 $(( ${ntags} - 1 ))`; do
+				json_array_get_item "$tags" "$i" tag
+				json_get_string "$tag" tag tagval
+				tagmeta="${tagmeta}${tagval}, "
+			done
+
+			__meta[tags]="${tagmeta%, }"
+		fi
+
+		if json_has_path "$tmp" seriesNavData seriesId ; then
+			json_get_integer "$tmp" seriesNavData.seriesId __meta[series]
+			json_get_string "$tmp"  seriesNavData.title    __meta[series_name]
 		fi
 	fi
 

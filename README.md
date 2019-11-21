@@ -6,7 +6,7 @@ A script to save your loved novels to local disk.
 
 **This tool is designed to help save our favorite novels locally so that they can be read on a variety of devices. Please NEVER distribute the novels until you have permission from the author.**
 
-## Usage:
+## Usage
 
 Install dependents:
 
@@ -18,12 +18,14 @@ jq
 
 Create a `pixiv-config` file.
 
-Login your account on browser, and get pixiv cookie `PHPSESSID` and add it to `pixiv-config`. set `USER_ID` to your pixiv user id. It likes
+Login your account on a browser, and get pixiv cookie `PHPSESSID` and add it to `pixiv-config`. set `USER_ID` to your pixiv user id. It likes
 
 ```
 COOKIE="PHPSESSID=XXXXXXXX_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX;"
 USER_ID="<Your user id>"
 ```
+
+> If you are using Mozilla Firefox, open https://www.pixiv.net in browser, click `F12`, and you can find `PHPSESSID` in `Storage` -> `Cookie`. Click your avatar in web page, and then you can find your user id in the end of the URL.
 
 Run the script
 
@@ -34,6 +36,8 @@ $ ./novel.sh -c -m
 `-c` or `--lazy-text-count` option enables "text count" lazy mode. For this example, it will avoid repeated saves after the second time.  But in this example it's a little dangerous, because the novel may have been updated, and there is no way to see the last update time of the novel before getting the full novel for this source type (bookmarks). However, there are still some ways to allow roughly guessing whether the novel has been updated, such as the number of words, but this is not 100% accurate. For more information, please refer to "Lazy mode" section.
 
 `-m` or `--save-my-bookmarks` option make program to save all your bookmarked novels.
+
+To save all novels in your private bookmarks, you can use `-p` or `--save-my-private`.
 
 To save all novels by an author, you can use `-A <ID>` or `--save-author <ID>`. (Can be specified multiple times)
 
@@ -89,14 +93,38 @@ You may have noticed the uppercase letters before each novel in the output, whic
 
 - [x] Lazy Mode, Avoid repeated saves after the second time
 
-- [ ] Add built-in login
+- [ ] Add built-in login for pixiv.net
 
 - [x] Save novels from author userid
 
 - [x] Save novels from series id
 
-- [ ] Implement all unimplemented options (see `(not impl)` in `-h` usage)
-
 - [x] Refactor ugly old pixiv functions implementations
 
 - [x] Save novels from private (non-public) bookmarks
+
+- [x] Save more infomation of novels (tags, etc)
+
+	- [x] Description
+
+	- [x] Series infomation
+
+	- [x] Tags (Basic)
+
+	- [ ] Tags (is locked/deletable)
+	
+	- [ ] Original or not
+	
+	- [ ] Creation Date
+	
+	- [x] Uploaded Date
+
+- [ ] Implement all unimplemented options (`(not impl)` in `-h` usage)
+
+	- [ ] A option to allow to strip non-ascii title in filename
+
+	- [ ] A option to save cover image of novels
+
+	- [ ] A option to save inline images in novels
+	
+	- [ ] A option to split pixiv novel chapters
