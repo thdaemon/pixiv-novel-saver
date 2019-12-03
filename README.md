@@ -4,17 +4,25 @@ A script to save your loved novels to local disk.
 
 **Thanks to the authors for their creativity! And be sure to respect the author's work!**
 
-**This tool is designed to help save our favorite novels locally so that they can be read on a variety of devices. Please NEVER distribute the novels until you have permission from the author.**
+**This tool is designed to help save our favorite novels locally so that they can be read on a variety of devices anytime even if author deletes them. But please NEVER distribute the novels until you have permission from the author.**
 
 ## Usage
 
-Install dependents:
+### Installation
 
-```
-GNU Bash
-cURL
-jq
-```
+Install dependents: `GNU Bash (4.4 or later)` (old versions may or may not work), `cURL` and `jq`
+
+OS|Installation Notes
+-----|---------
+Debian, Ubuntu, etc| `sudo apt install curl jq`
+macOS| Install [Homebrew](http://brew.sh/) first, and run `brew install bash curl jq`. You must use the new bash (may not in PATH env-var).
+Windows (64 bit)| Install [MSYS2](https://www.msys2.org/) first, and then open msys2 environment, run it in msys2-MINGW64 terminal: `pacman -S mingw-w64-x86_64-jq`. Cygwin may also work, but I haven't tested.
+
+> This tool directly saves the newline characters returned by pixiv to a file, which may be LF or CRLF, depending on the novel. But this tool will only use LF to store metadata. So Especially on Windows, I think you might also like to use the `dos2unix` and `unix2dos` tool. (I wi)
+>
+> On Windows, 32bit msys2-MINGW32 should work but I have NOT tested it. And you should install packages by `pacman -S mingw-w64-i686-jq`
+
+### Quick start
 
 Create a `pixiv-config` file.
 
@@ -103,6 +111,8 @@ You may have noticed the uppercase letters before each novel in the output, whic
 
 - [x] Save novels from private (non-public) bookmarks
 
+- [ ] Automatically handle line breaks (CR, CRLF)
+
 - [x] Save more infomation of novels (tags, etc)
 
 	- [x] Description
@@ -120,6 +130,8 @@ You may have noticed the uppercase letters before each novel in the output, whic
 	- [x] Uploaded Date
 
 - [ ] Implement all unimplemented options (`(not impl)` in `-h` usage)
+
+	- [x] A option to disable all lazy modes unconditionally
 
 	- [ ] A option to allow to strip non-ascii title in filename
 
