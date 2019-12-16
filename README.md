@@ -18,8 +18,6 @@ Debian, Ubuntu, etc| `sudo apt install curl jq`
 macOS| Install [Homebrew](http://brew.sh/) first, and run `brew install bash curl jq`. You must use the new bash (may not in PATH env-var).
 Windows (64 bit)| Install [MSYS2](https://www.msys2.org/) first, and then open msys2 environment, run it in msys2-MINGW64 terminal: `pacman -S mingw-w64-x86_64-jq`. Cygwin may also work, but I haven't tested.
 
-> This tool directly saves the newline characters returned by pixiv to a file, which may be LF or CRLF, depending on the novel. But this tool will only use LF to store metadata. So Especially on Windows, I think you might also like to use the `dos2unix` and `unix2dos` tool. (I wi)
->
 > On Windows, 32bit msys2-MINGW32 should work but I have NOT tested it. And you should install packages by `pacman -S mingw-w64-i686-jq`
 
 ### Quick start
@@ -89,6 +87,28 @@ You may have noticed the uppercase letters before each novel in the output, whic
 
 - `I` on Lazy mode, this novel have been ignored.
 
+## Line breaks
+
+The line breaks in pixiv novels is no promises, usually it is CR or CRLF. You can use the "post hook" function to handle this automatically for each novel. Here is an example:
+
+```
+$ ./novel.sh -c -m -p --hook 'dos2unix -q'
+```
+
+On Windows, the "jq" program has a problem that will cause the linebreak becomes \r\r\n or \r\n (which should be \r\n and \n), the "unix2dos" can not handle it. The solusion is write a custom script like:
+
+```
+$ cat > post.sh <<EOF
+#!/bin/bash
+
+sed -i 's/\r//g' "$1"
+# And any other commands. For example, if you want to use CRLF, uncomment it:
+# unix2dos -q "$1"
+EOF
+$ chmod +x post.sh
+$ ./novel.sh -c -m -p --hook './post.sh'
+```
+
 ## Notice
 
 0.2.x version is not compatible with 0.1.x version. So in order to avoid trouble, the default save location has also changed.
@@ -128,6 +148,8 @@ You may have noticed the uppercase letters before each novel in the output, whic
 	- [ ] Creation Date
 	
 	- [x] Uploaded Date
+
+- [x] Post-hook: run a command for each downloaded/ignored novel
 
 - [ ] Implement all unimplemented options (`(not impl)` in `-h` usage)
 

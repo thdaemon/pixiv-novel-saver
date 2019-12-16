@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.6'
+SCRIPT_VERSION='0.2.7'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -20,13 +20,16 @@ novels=()
 serieses=()
 authors=()
 
+post_command=''
+post_command_ignored=''
+
 [ -f pixiv-config ] && {
 	source pixiv-config
 	echo "[info] user specific configuration loaded"
 }
 
 declare -A useragent
-useragent[desktop]="User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:70.0) Gecko/20100101 Firefox/70.0"
+useragent[desktop]="User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0"
 useragent[mobile]="User-Agent: Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox/68.0"
 
 dbg() {
@@ -34,7 +37,7 @@ dbg() {
 }
 
 printdbg() {
-	echo "$*" >&2
+	echo "[debug] $*" >&2
 }
 
 __sendpost() {
@@ -51,7 +54,7 @@ __sendpost() {
 sendpost() {
 	dbg && printdbg "> $1"
 	resp=`__sendpost "$@"`
-	dbg && printdbg "$resp" && echo
+	dbg && echo "$resp" | jq >&2
 	echo "$resp"
 }
 
@@ -315,6 +318,10 @@ MISC OPTIONS:
   --download-cover-image   (not impl)
   --download-inline-image  (not impl)
   --parse-pixiv-chapters   (not impl)
+  -e, --hook \"<command>\" Run 'cmd \"\$filename\"' for each downloaded novel
+                             (note: the tmp file will be renamed after hook)
+  --ignored-post-hook \"<command>\"
+                           Run 'cmd \"\$filename\"' for each ignored novel
 
 SOURCE OPTIONS:
   -m, --save-my-bookmarks  Save all my bookmarked novels
@@ -357,6 +364,8 @@ write_file_atom() {
 	done
 	echo "=============================" >> "${filename}"
 	echo "${content}" >> "${filename}"
+
+	[ -n "${post_command}" ] && ${post_command} "${filename}"
 
 	mv "${filename}" "${filename_real}"
 }
@@ -417,6 +426,8 @@ download_novel() {
 		done
 
 		write_file_atom "$filename" meta "$novel"
+	else
+		[ -n "${post_command_ignored}" ] && ${post_command_ignored} "${filename}"
 	fi
 }
 
@@ -623,6 +634,14 @@ while [ "$#" -gt 0 ]; do
 		;;
 	-A|--save-author)
 		authors[${#authors[@]}]="$2"
+		shift
+		;;
+	-e|--hook)
+		post_command="$2"
+		shift
+		;;
+	--ignored-post-hook)
+		post_command_ignored="$2"
 		shift
 		;;
 	-h|*)
