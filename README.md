@@ -87,6 +87,8 @@ You may have noticed the uppercase letters before each novel in the output, whic
 
 - `I` on Lazy mode, this novel have been ignored.
 
+- `C` when specify `--with-cover-image`, and this novel has an uncommon (author customized) cover image.
+
 ## Line breaks
 
 The line breaks in pixiv novels is no promises, usually it is CR or CRLF. You can use the "post hook" function to handle this automatically for each novel. Here is an example:

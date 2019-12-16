@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.7'
+SCRIPT_VERSION='0.2.9'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -34,6 +34,7 @@ declare -A useragent
 useragent[desktop]="User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0"
 useragent[mobile]="User-Agent: Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox/68.0"
 
+_slash_replace_to=_
 _max_flag_len=5
 _max_id_len=9
 
@@ -362,6 +363,15 @@ EXAMPLES:
 EOF
 }
 
+## trick_meta
+#    __meta - pointer to a key-value pair
+#  after trick_meta, all '/' in __meta[title], __meta[series_name], etc will be replaced.
+trick_meta() {
+	declare -n __meta="$1"
+	[ -n "${__meta[title]}" ] && __meta[title]=`echo "${__meta[title]}" | tr '/' $_slash_replace_to`
+	[ -n "${__meta[series_name]}" ] && __meta[series_name]=`echo "${__meta[series_name]}" | tr '/' $_slash_replace_to`
+}
+
 ## write_file_atom
 #    filename - file name
 #    __kvpair - pointer to a key-value pair to write
@@ -412,6 +422,8 @@ download_novel() {
 
 	local series_dir filename novel
 	declare -A nmeta
+
+	trick_meta meta
 
 	if [ "${NO_SERIES}" = '0' ]; then
 		if [ -z "${meta[series]}" ]; then
@@ -472,6 +484,8 @@ save_id() {
 		echo "[warning] empty novel content detected, but server responed a success hdr."
 		[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
 	fi
+
+	trick_meta meta
 
 	if [ "${NO_SERIES}" = '0' ]; then
 		if [ -z "${meta[series]}" ]; then
