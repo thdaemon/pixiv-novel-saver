@@ -14,6 +14,8 @@ LAZY_TEXT_COUNT=0
 NO_LAZY_UNCON=0
 NO_SERIES=0
 
+WITH_COVER_IMAGE=0
+
 bookmarks=0
 private=0
 novels=()
@@ -32,6 +34,9 @@ declare -A useragent
 useragent[desktop]="User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0"
 useragent[mobile]="User-Agent: Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox/68.0"
 
+_max_flag_len=5
+_max_id_len=9
+
 dbg() {
 	[ "$DEBUG" = '1' ]
 }
@@ -41,7 +46,7 @@ printdbg() {
 }
 
 __sendpost() {
-	curl --compressed -s "https://www.pixiv.net/$1" \
+	curl --compressed -s "$1" \
 		-H "${useragent["${2:-desktop}"]}" \
 		-H "Accept: application/json" \
 		-H 'Accept-Language: en_US,en;q=0.5' \
@@ -52,8 +57,13 @@ __sendpost() {
 }
 
 sendpost() {
+	local uri="https://www.pixiv.net/$1"
+	shift
+
 	dbg && printdbg "> $1"
-	resp=`__sendpost "$@"`
+
+	resp=`__sendpost "$uri" "$@"`
+
 	dbg && echo "$resp" | jq >&2
 	echo "$resp"
 }
@@ -92,6 +102,11 @@ json_array_n_items() {
 json_array_get_item() {
 	declare -n  __msg_="${3}"
 	json_get_object "${1}" "[${2}]" __msg_
+}
+
+errquit() {
+	echo "[error] $1"
+	exit 1
 }
 
 pixiv_error=''
@@ -133,8 +148,7 @@ __pixiv_parsehdr_mobile() {
 ## pixiv_errquit
 #    name - the name of "subprogram" which throw a error
 pixiv_errquit() {
-	echo "[error] ${1}: ${pixiv_error}"
-	exit 1
+	errquit "${1}: ${pixiv_error}"
 }
 
 ## pixiv_get_user_info
@@ -260,6 +274,7 @@ pixiv_get_novel() {
 		json_get_string "$tmp"  userName    __meta[author]
 		json_get_integer "$tmp" userId      __meta[authorid]
 		json_get_string "$tmp"  description __meta[description]
+		json_get_string "$tmp"  coverUrl    __meta[_cover_image_uri]
 
 		if json_has "$tmp" tags ; then
 			tagmeta=''
@@ -315,8 +330,9 @@ MISC OPTIONS:
                              (Not available in --save-author and --save-novel)
   -u, --disable-lazy-mode  Disable all lazy modes unconditionally
   --strip-nonascii-title   Strip non-ASCII title characters (not impl)
-  --download-cover-image   (not impl)
-  --download-inline-image  (not impl)
+  --with-cover-image       Download the cover image of novels only if the image
+                             is NOT a common cpver image
+  --with-inline-image      (not impl)
   --parse-pixiv-chapters   (not impl)
   -e, --hook \"<command>\" Run 'cmd \"\$filename\"' for each downloaded novel
                              (note: the tmp file will be renamed after hook)
@@ -360,7 +376,7 @@ write_file_atom() {
 	mkdir -p "`dirname "${filename_real}"`"
 	cat /dev/null > "${filename}"
 	for i in "${!__kv[@]}"; do
-		echo "${i}: ${__kv[$i]}" >> "${filename}"
+		[[ "$i" == _* ]] || echo "${i}: ${__kv[$i]}" >> "${filename}"
 	done
 	echo "=============================" >> "${filename}"
 	echo "${content}" >> "${filename}"
@@ -368,6 +384,16 @@ write_file_atom() {
 	[ -n "${post_command}" ] && ${post_command} "${filename}"
 
 	mv "${filename}" "${filename_real}"
+}
+
+## download_cover_image
+#    uri: image URI
+#    filename: the file to save data
+download_cover_image() {
+	[[ "${1}" == *s.pximg.net/common/* ]] && return 1
+	mkdir -p "`dirname "${2}"`"
+	__sendpost "${1}" > "${2}" || errquit "cover image download failed"
+	return 0
 }
 
 ## download_novel
@@ -382,8 +408,6 @@ download_novel() {
 	local lazymode="$3"
 	local lazytag="$4"
 	local flags="N${5}"
-	local flag_pad="    "
-	local flag_max_len=4
 	local ignore='0'
 
 	local series_dir filename novel
@@ -408,11 +432,7 @@ download_novel() {
 	esac
 
 	[ "$NO_LAZY_UNCON" = '1' ] && ignore='0'
-
 	[ "$ignore" = '1' ] && flags="${flags}I"
-
-	flags="${flags}${flag_pad}"
-	echo "=> ${flags:0:${flag_max_len}} ${meta[id]} '${meta[title]}' ${meta[author]}"
 
 	if [ "$ignore" = '0' ]; then
 		pixiv_get_novel "${meta[id]}" novel nmeta || pixiv_errquit pixiv_get_novel
@@ -425,8 +445,15 @@ download_novel() {
 			[ -z "${meta[$i]}" ] && meta[$i]="${nmeta[$i]}"
 		done
 
+		if [ "$WITH_COVER_IMAGE" = '1' -a -n "${meta[_cover_image_uri]}" ]; then
+			download_cover_image "${meta[_cover_image_uri]}" "${filename}.coverimage" && flags="${flags}C"
+		fi
+
+		printf "=> %-${_max_flag_len}s %-${_max_id_len}s %s %s\n" "$flags" "${meta[id]}" "'${meta[title]}'" "${meta[author]}"
+
 		write_file_atom "$filename" meta "$novel"
 	else
+		printf "=> %-${_max_flag_len}s %-${_max_id_len}s %s %s\n" "$flags" "${meta[id]}" "'${meta[title]}'" "${meta[author]}"
 		[ -n "${post_command_ignored}" ] && ${post_command_ignored} "${filename}"
 	fi
 }
@@ -436,13 +463,16 @@ download_novel() {
 save_id() {
 	local id="$1"
 	local flags='N'
-	local flag_pad="    "
-	local flag_max_len=4
 
 	local series_dir filename content
 	declare -A meta
 
 	pixiv_get_novel "$id" content meta || pixiv_errquit pixiv_get_novel
+	if [ -z "$content" ]; then
+		echo "[warning] empty novel content detected, but server responed a success hdr."
+		[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
+	fi
+
 	if [ "${NO_SERIES}" = '0' ]; then
 		if [ -z "${meta[series]}" ]; then
 			series_dir=""
@@ -454,13 +484,11 @@ save_id() {
 
 	filename="${DIR_PREFIX}/singles/${meta[authorid]}-${meta[author]}${series_dir}/${meta[id]}-${meta[title]}.txt"
 
-	flags="${flags}${flag_pad}"
-	echo "=> ${flags:0:${flag_max_len}} ${meta[id]} '${meta[title]}' ${meta[author]}"
-
-	if [ -z "$content" ]; then
-		echo "[warning] empty novel content detected, but server responed a success hdr."
-		[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
+	if [ "$WITH_COVER_IMAGE" = '1' -a -n "${meta[_cover_image_uri]}" ]; then
+		download_cover_image "${meta[_cover_image_uri]}" "${filename}.coverimage" && flags="${flags}C"
 	fi
+
+	printf "=> %-${_max_flag_len}s %-${_max_id_len}s %s %s\n" "$flags" "${meta[id]}" "'${meta[title]}'" "${meta[author]}"
 
 	write_file_atom "$filename" meta "$content"
 }
@@ -643,6 +671,9 @@ while [ "$#" -gt 0 ]; do
 	--ignored-post-hook)
 		post_command_ignored="$2"
 		shift
+		;;
+	--with-cover-image)
+		WITH_COVER_IMAGE=1
 		;;
 	-h|*)
 		usage "$0"

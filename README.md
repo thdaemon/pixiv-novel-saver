@@ -51,7 +51,7 @@ To save all novels from a series, you can use `-s <ID>` or `--save-series <ID>`.
 
 To save novels by it ID, you can use `-a <ID>` or `--save-novel <ID>`. (Can be specified multiple times)
 
-Some other options are useful, such as `-d, --no-series`, `-E, --ignore-empty`, `-w, --window-size`, etc.
+Some other options are useful, such as `-d, --no-series`, `-E, --ignore-empty`, `-w, --window-size`, `--with-cover-image`, etc.
 
 For more infomation, run
 
@@ -157,7 +157,7 @@ $ ./novel.sh -c -m -p --hook './post.sh'
 
 	- [ ] A option to allow to strip non-ascii title in filename
 
-	- [ ] A option to save cover image of novels
+	- [x] A option to save cover image of novels
 
 	- [ ] A option to save inline images in novels
 	
