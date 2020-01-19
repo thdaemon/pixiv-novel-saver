@@ -130,21 +130,23 @@ __pixiv_parsehdr() {
 	return 0
 }
 
-__pixiv_parsehdr_mobile() {
-	local tmp
-	declare -n  __msg="$2"
-
-	if json_has "$1" isSucceed ; then
-		if ! json_is_true "$1" isSucceed ; then
-			__msg="server error (mobile mode)"
-			return 1
-		fi
-	else
-		__msg="network error"
-		return 1
-	fi
-	return 0
-}
+# It seems at least some pixiv.net mobile version API HAVE NOT USE isSucceed now....
+# Now comment the __pixiv_parsehdr_mobile because nobody use it.
+#__pixiv_parsehdr_mobile() {
+#	local tmp
+#	declare -n  __msg="$2"
+#
+#	if json_has "$1" isSucceed ; then
+#		if ! json_is_true "$1" isSucceed ; then
+#			__msg="server error (mobile mode)"
+#			return 1
+#		fi
+#	else
+#		__msg="network error (mobile mode)"
+#		return 1
+#	fi
+#	return 0
+#}
 
 ## pixiv_errquit
 #    name - the name of "subprogram" which throw a error
@@ -226,10 +228,10 @@ pixiv_list_novels_by_author() {
 	local tmp
 
 	tmp=`sendpost "touch/ajax/user/novels?id=${userid}&p=${page}" mobile`
-	__pixiv_parsehdr_mobile "$tmp" pixiv_error || return 1
+	__pixiv_parsehdr "$tmp" pixiv_error || return 1
 
-	json_get_object "$tmp" novels __novels
-	[ "$page" = "1" ] && json_get_integer "$tmp" lastPage __page_number
+	json_get_object "$tmp" body.novels __novels
+	[ "$page" = "1" ] && json_get_integer "$tmp" body.lastPage __page_number
 	return 0
 }
 
