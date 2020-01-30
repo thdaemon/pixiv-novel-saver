@@ -12,6 +12,7 @@ USER_ID=""
 ABORT_WHILE_EMPTY_CONTENT=1
 LAZY_TEXT_COUNT=0
 NO_LAZY_UNCON=0
+RENAMING_DETECT=1
 NO_SERIES=0
 
 WITH_COVER_IMAGE=0
@@ -332,6 +333,7 @@ MISC OPTIONS:
   -w, --window-size <NPP>  default: 24, how many items per page
                              (Not available in --save-author and --save-novel)
   -u, --disable-lazy-mode  Disable all lazy modes unconditionally
+  -R, --no-renaming-detect Do not detect author/series renaming
   --strip-nonascii-title   Strip non-ASCII title characters (not impl)
   --with-cover-image       Download the cover image of novels only if the image
                              is NOT a common cpver image
@@ -456,8 +458,7 @@ download_novel() {
 	declare -A nmeta
 
 	trick_meta meta
-
-	rename_check "${DIR_PREFIX}/${sdir}" "${meta[authorid]}-*" "${meta[authorid]}-${meta[author]}"
+	[ "$RENAMING_DETECT" = '1' ] && rename_check "${DIR_PREFIX}/${sdir}" "${meta[authorid]}-*" "${meta[authorid]}-${meta[author]}"
 
 	if [ "${NO_SERIES}" = '0' ]; then
 		if [ -z "${meta[series]}" ]; then
@@ -465,7 +466,7 @@ download_novel() {
 		else
 			series_dir="/${meta[series]}-${meta[series_name]}"
 			flags="${flags}S"
-			rename_check "${DIR_PREFIX}/${sdir}/${meta[authorid]}-${meta[author]}" "${meta[series]}-*" "${meta[series]}-${meta[series_name]}"
+			[ "$RENAMING_DETECT" = '1' ] && rename_check "${DIR_PREFIX}/${sdir}/${meta[authorid]}-${meta[author]}" "${meta[series]}-*" "${meta[series]}-${meta[series_name]}"
 		fi
 	fi
 
@@ -521,7 +522,7 @@ save_id() {
 	fi
 
 	trick_meta meta
-	rename_check "${DIR_PREFIX}/singles/" "${meta[authorid]}-*" "${meta[authorid]}-${meta[author]}"
+	[ "$RENAMING_DETECT" = '1' ] && rename_check "${DIR_PREFIX}/singles/" "${meta[authorid]}-*" "${meta[authorid]}-${meta[author]}"
 
 	if [ "${NO_SERIES}" = '0' ]; then
 		if [ -z "${meta[series]}" ]; then
@@ -529,7 +530,7 @@ save_id() {
 		else
 			series_dir="/${meta[series]}-${meta[series_name]}"
 			flags="${flags}S"
-			rename_check "${DIR_PREFIX}/singles/${meta[authorid]}-${meta[author]}" "${meta[series]}-*" "${meta[series]}-${meta[series_name]}"
+			[ "$RENAMING_DETECT" = '1' ] && rename_check "${DIR_PREFIX}/singles/${meta[authorid]}-${meta[author]}" "${meta[series]}-*" "${meta[series]}-${meta[series_name]}"
 		fi
 	fi
 
@@ -689,6 +690,9 @@ while [ "$#" -gt 0 ]; do
 	-o|--output)
 		DIR_PREFIX="$2"
 		shift
+		;;
+	-R|--no-renaming-detect)
+		RENAMING_DETECT=0
 		;;
 	-E|--ignore-empty)
 		ABORT_WHILE_EMPTY_CONTENT=0
