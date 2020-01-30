@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.9'
+SCRIPT_VERSION='0.2.11'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -12,6 +12,7 @@ USER_ID=""
 ABORT_WHILE_EMPTY_CONTENT=1
 LAZY_TEXT_COUNT=0
 NO_LAZY_UNCON=0
+RENAMING_DETECT=1
 NO_SERIES=0
 
 WITH_COVER_IMAGE=0
@@ -31,7 +32,7 @@ post_command_ignored=''
 }
 
 declare -A useragent
-useragent[desktop]="User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0"
+useragent[desktop]="User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:72.0) Gecko/20100101 Firefox/72.0"
 useragent[mobile]="User-Agent: Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox/68.0"
 
 _slash_replace_to=_
@@ -332,6 +333,7 @@ MISC OPTIONS:
   -w, --window-size <NPP>  default: 24, how many items per page
                              (Not available in --save-author and --save-novel)
   -u, --disable-lazy-mode  Disable all lazy modes unconditionally
+  -R, --no-renaming-detect Do not detect author/series renaming
   --strip-nonascii-title   Strip non-ASCII title characters (not impl)
   --with-cover-image       Download the cover image of novels only if the image
                              is NOT a common cpver image
@@ -408,6 +410,36 @@ download_cover_image() {
 	return 0
 }
 
+## rename_check
+#    parent: parent dir
+#    check: glob expr, expect only one result
+#    should_be: when 'check' get more than 2 results, which should be kept
+rename_check() {
+	local tmp
+	local dirs=`find "$1" -maxdepth 1 -type d -name "$2" 2> /dev/null`
+
+	[ -n "$dirs" ] || return 0
+
+	local n=`echo "$dirs" | wc -l`
+
+	if [ "$n" != "1" ]; then
+		echo "[error] rename check, multiple ${2} existed, please fix it manually."
+		echo "BTW, the current author/series name is '${3}'"
+		echo
+		echo "${dirs}"
+		echo
+		exit 1
+	fi
+
+	[ -d "$dirs" ] || errquit "directory assert failed: $dirs"
+
+	tmp="${dirs%/*}/${3}"
+	if [ "$dirs" != "$tmp" ]; then
+		echo "[notice] directory '${dirs}' renamed to '${tmp}'. The author has changed nickname or series name."
+		mv "$dirs" "$tmp" || errquit "fatal error occurred"
+	fi
+}
+
 ## download_novel
 #    subdir - the subdir name
 #    meta - pointer to novel_meta associative array
@@ -426,6 +458,7 @@ download_novel() {
 	declare -A nmeta
 
 	trick_meta meta
+	[ "$RENAMING_DETECT" = '1' ] && rename_check "${DIR_PREFIX}/${sdir}" "${meta[authorid]}-*" "${meta[authorid]}-${meta[author]}"
 
 	if [ "${NO_SERIES}" = '0' ]; then
 		if [ -z "${meta[series]}" ]; then
@@ -433,6 +466,7 @@ download_novel() {
 		else
 			series_dir="/${meta[series]}-${meta[series_name]}"
 			flags="${flags}S"
+			[ "$RENAMING_DETECT" = '1' ] && rename_check "${DIR_PREFIX}/${sdir}/${meta[authorid]}-${meta[author]}" "${meta[series]}-*" "${meta[series]}-${meta[series_name]}"
 		fi
 	fi
 
@@ -488,6 +522,7 @@ save_id() {
 	fi
 
 	trick_meta meta
+	[ "$RENAMING_DETECT" = '1' ] && rename_check "${DIR_PREFIX}/singles/" "${meta[authorid]}-*" "${meta[authorid]}-${meta[author]}"
 
 	if [ "${NO_SERIES}" = '0' ]; then
 		if [ -z "${meta[series]}" ]; then
@@ -495,6 +530,7 @@ save_id() {
 		else
 			series_dir="/${meta[series]}-${meta[series_name]}"
 			flags="${flags}S"
+			[ "$RENAMING_DETECT" = '1' ] && rename_check "${DIR_PREFIX}/singles/${meta[authorid]}-${meta[author]}" "${meta[series]}-*" "${meta[series]}-${meta[series_name]}"
 		fi
 	fi
 
@@ -654,6 +690,9 @@ while [ "$#" -gt 0 ]; do
 	-o|--output)
 		DIR_PREFIX="$2"
 		shift
+		;;
+	-R|--no-renaming-detect)
+		RENAMING_DETECT=0
 		;;
 	-E|--ignore-empty)
 		ABORT_WHILE_EMPTY_CONTENT=0

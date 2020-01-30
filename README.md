@@ -164,3 +164,5 @@ $ ./novel.sh -c -m -p --hook './post.sh'
 	- [ ] A option to save inline images in novels
 	
 	- [ ] A option to split pixiv novel chapters
+
+- [x] Automatic detect the author rename and series rename.
