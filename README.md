@@ -115,6 +115,10 @@ $ ./novel.sh -c -m -p --hook './post.sh'
 
 0.2.x version is not compatible with 0.1.x version. So in order to avoid trouble, the default save location has also changed.
 
+## Built-In Login support
+
+It is very sad that pixiv.net login interface is protected by reCAPTCHA. If you have some methods to bypass it, please contact me.
+
 ## TODO
 
 - [x] Basic features available
@@ -123,7 +127,7 @@ $ ./novel.sh -c -m -p --hook './post.sh'
 
 - [x] Lazy Mode, Avoid repeated saves after the second time
 
-- [ ] Add built-in login for pixiv.net
+- [ ] Add built-in login for pixiv.net (IT MAY NOT)
 
 - [x] Save novels from author userid
 
@@ -135,21 +139,7 @@ $ ./novel.sh -c -m -p --hook './post.sh'
 
 - [ ] Automatically handle line breaks (CR, CRLF)
 
-- [x] Save more infomation of novels (tags, etc)
-
-	- [x] Description
-
-	- [x] Series infomation
-
-	- [x] Tags (Basic)
-
-	- [ ] Tags (is locked/deletable)
-	
-	- [ ] Original or not
-	
-	- [ ] Creation Date
-	
-	- [x] Uploaded Date
+- [x] Save more infomation of novels (tags, description, series, original, creation/uploaded date, etc)
 
 - [x] Post-hook: run a command for each downloaded/ignored novel
 

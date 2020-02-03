@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.11'
+SCRIPT_VERSION='0.2.13'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -60,9 +60,8 @@ __sendpost() {
 
 sendpost() {
 	local uri="https://www.pixiv.net/$1"
-	shift
-
 	dbg && printdbg "> $1"
+	shift
 
 	resp=`__sendpost "$uri" "$@"`
 
@@ -91,6 +90,13 @@ json_get_string() {
 json_get_integer() {
 	declare -n  __msg="${3}"
 	__msg=`jq ".${2} | tonumber" <<< "${1}"`
+}
+
+json_get_booleanstring() {
+	local __tmp
+	declare -n  __msg="${5}"
+	json_get_object "${1}" "${2}" __tmp
+	[ "$__tmp" = 'true' ] && __msg="${3}" || __msg="${4}"
 }
 
 json_is_true() {
@@ -273,12 +279,14 @@ pixiv_get_novel() {
 	if [ -n "$3" ]; then
 		declare -n __meta="$3"
 		json_get_string "$tmp"  uploadDate  __meta[uploadDate]
+		json_get_string "$tmp"  createDate  __meta[createDate]
 		json_get_integer "$tmp" id          __meta[id]
 		json_get_string "$tmp"  title       __meta[title]
 		json_get_string "$tmp"  userName    __meta[author]
 		json_get_integer "$tmp" userId      __meta[authorid]
 		json_get_string "$tmp"  description __meta[description]
 		json_get_string "$tmp"  coverUrl    __meta[_cover_image_uri]
+		json_get_booleanstring "$tmp" isOriginal yes no __meta[original]
 
 		if json_has "$tmp" tags ; then
 			tagmeta=''
@@ -387,8 +395,16 @@ write_file_atom() {
 
 	local filename="${filename_real}.tmp"
 
-	mkdir -p "`dirname "${filename_real}"`"
-	cat /dev/null > "${filename}"
+	mkdir -p "`dirname "${filename_real}"`" || errquit "write_file_atom: command failed"
+
+	cat > "${filename}" <<EOF
+Saved by pixiv-novel-saver version ${SCRIPT_VERSION}
+At ${START_DATE}
+https://github.com/thdaemon/pixiv-novel-saver
+
+EOF
+	[ "$?" = '0' ] || errquit "write_file_atom: command failed"
+
 	for i in "${!__kv[@]}"; do
 		[[ "$i" == _* ]] || echo "${i}: ${__kv[$i]}" >> "${filename}"
 	done
@@ -397,7 +413,7 @@ write_file_atom() {
 
 	[ -n "${post_command}" ] && ${post_command} "${filename}"
 
-	mv "${filename}" "${filename_real}"
+	mv "${filename}" "${filename_real}" || errquit "write_file_atom: command failed"
 }
 
 ## download_cover_image
@@ -740,6 +756,8 @@ while [ "$#" -gt 0 ]; do
 	esac
 	shift
 done
+
+START_DATE=`LANG=C LANGUAGE= LC_ALL=C date -R`
 
 [ "$bookmarks" = '1' ] && {
 	echo "[info] saving my bookmarked novels..."
