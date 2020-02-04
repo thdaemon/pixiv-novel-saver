@@ -14,7 +14,6 @@ LAZY_TEXT_COUNT=0
 NO_LAZY_UNCON=0
 RENAMING_DETECT=1
 NO_SERIES=0
-
 WITH_COVER_IMAGE=0
 
 bookmarks=0
@@ -26,18 +25,20 @@ authors=()
 post_command=''
 post_command_ignored=''
 
-[ -f pixiv-config ] && {
-	source pixiv-config
-	echo "[info] user specific configuration loaded"
-}
-
 declare -A useragent
 useragent[desktop]="User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:72.0) Gecko/20100101 Firefox/72.0"
 useragent[mobile]="User-Agent: Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox/68.0"
 
+EXTRA_CURL_OPTIONS=()
+
 _slash_replace_to=_
 _max_flag_len=5
 _max_id_len=9
+
+append_to_array() {
+	declare -n __arr="$1"
+	__arr[${#__arr}]="$2"
+}
 
 dbg() {
 	[ "$DEBUG" = '1' ]
@@ -48,7 +49,7 @@ printdbg() {
 }
 
 __sendpost() {
-	curl --compressed -s "$1" \
+	curl --compressed -s "${EXTRA_CURL_OPTIONS[@]}" "$1" \
 		-H "${useragent["${2:-desktop}"]}" \
 		-H "Accept: application/json" \
 		-H 'Accept-Language: en_US,en;q=0.5' \
@@ -347,10 +348,10 @@ MISC OPTIONS:
                              is NOT a common cpver image
   --with-inline-image      (not impl)
   --parse-pixiv-chapters   (not impl)
-  -e, --hook \"<command>\" Run 'cmd \"\$filename\"' for each downloaded novel
+  -e, --hook "<command>" Run 'cmd "\$filename"' for each downloaded novel
                              (note: the tmp file will be renamed after hook)
-  --ignored-post-hook \"<command>\"
-                           Run 'cmd \"\$filename\"' for each ignored novel
+  --ignored-post-hook "<command>"
+                           Run 'cmd "\$filename"' for each ignored novel
 
 SOURCE OPTIONS:
   -m, --save-my-bookmarks  Save all my bookmarked novels
@@ -757,7 +758,14 @@ while [ "$#" -gt 0 ]; do
 	shift
 done
 
+[ -f pixiv-config ] && {
+	source pixiv-config
+	echo "[info] user specific configuration loaded"
+}
+
 START_DATE=`LANG=C LANGUAGE= LC_ALL=C date -R`
+
+dbg && append_to_array EXTRA_CURL_OPTIONS -v
 
 [ "$bookmarks" = '1' ] && {
 	echo "[info] saving my bookmarked novels..."

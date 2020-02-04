@@ -59,7 +59,7 @@ For more infomation, run
 $ ./novel.sh -h
 ```
 
-You can also set default options in `pixiv-config`, but you need to read source code to find which you want...
+**NOTE**: You can also set default options in `pixiv-config`, see [This document](/doc/config-file.md).
 
 ## Lazy mode
 
