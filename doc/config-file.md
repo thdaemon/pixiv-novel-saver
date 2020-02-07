@@ -1,12 +1,36 @@
 # Configure file
 
-## Set pixiv.net auth cookie
+## Syntax
+
+Set a variable
+
+```
+name=value
+```
+
+value can be `123`, `string`, `"string"`, `'string'`. like Bash variable
+
+Append variables to array
+
+```
+append_to_array <ArrayName> <arg0> [arg1] [arg2] ...
+```
+
+e.g.
+
+```
+append_to_array authors 123456 654321 111111
+```
+
+## General
+
+### Set pixiv.net auth cookie
 
 ```
 COOKIE="PHPSESSID=XXXXXXXX_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX;"
 ```
 
-## Set your user id
+### Set your user id
 
 ```
 USER_ID="<Your user id>"
@@ -28,23 +52,17 @@ private=1
 
 Same as `-a, --save-novel <ID>`. Save a novel by its ID
 
-> `append_to_array <ArrayName> <Item>` only accept one item. If you need add multiple items, you can run `append_to_array` multiple times
-
 ```
 append_to_array novels <ID>
 ```
 
 Same as `-s, --save-series <ID>`. Save all public novels in a series by ID
 
-> `append_to_array <ArrayName> <Item>` only accept one item. If you need add multiple items, you can run `append_to_array` multiple times
-
 ```
 append_to_array serieses <ID>
 ```
 
 Same as `-A, --save-author <ID>`. Save all public novels published by an author
-
-> `append_to_array <ArrayName> <Item>` only accept one item. If you need add multiple items, you can run `append_to_array` multiple times
 
 ```
 append_to_array authors <ID>
@@ -77,8 +95,6 @@ useragent[mobile]="User-Agent: Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/
 
 ### Add extra cURL options
 
-> `append_to_array <ArrayName> <Item>` only accept one item. If you need add multiple items, you can run `append_to_array` multiple times
-
 ```
-append_to_array EXTRA_CURL_OPTIONS <Your option>
+append_to_array EXTRA_CURL_OPTIONS <Your options>
 ```

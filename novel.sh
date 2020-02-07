@@ -37,7 +37,10 @@ _max_id_len=9
 
 append_to_array() {
 	declare -n __arr="$1"
-	__arr[${#__arr}]="$2"
+	shift
+	for i in "$@"; do
+		__arr[${#__arr[@]}]="$i"
+	done
 }
 
 dbg() {
