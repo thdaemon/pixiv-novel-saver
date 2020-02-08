@@ -315,6 +315,19 @@ pixiv_get_novel() {
 	return 0
 }
 
+pixiv_get_illust_url_original() {
+	local id="$1"
+	declare -n  __url="$2"
+
+	local tmp
+
+	tmp=`sendpost "ajax/illust/${id}/pages"`
+	__pixiv_parsehdr "$tmp" pixiv_error || return 1
+
+	json_get_string "$tmp" body[0].urls.original __url
+	return 0
+}
+
 usage() {
 	cat <<EOF
 Pixiv novel saver ${SCRIPT_VERSION}
