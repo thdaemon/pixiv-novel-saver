@@ -22,6 +22,12 @@ e.g.
 append_to_array authors 123456 654321 111111
 ```
 
+Export env-vars to sub processes (such as curl proxy env-var)
+
+```
+export name=value
+```
+
 ## General
 
 ### Set pixiv.net auth cookie

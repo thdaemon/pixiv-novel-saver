@@ -51,7 +51,7 @@ To save all novels from a series, you can use `-s <ID>` or `--save-series <ID>`.
 
 To save novels by it ID, you can use `-a <ID>` or `--save-novel <ID>`. (Can be specified multiple times)
 
-Some other options are useful, such as `-d, --no-series`, `-E, --ignore-empty`, `-w, --window-size`, `--with-cover-image`, etc.
+Some other options are useful, such as `-d, --no-series`, `-E, --ignore-empty`, `-w, --window-size`, `--with-cover-image`, `-R, --no-renaming-detect`, etc.
 
 For more infomation, run
 
@@ -101,6 +101,23 @@ $ ./novel.sh -c -m -p --hook 'unix2dos -q'
 
 0.2.x version is not compatible with 0.1.x version. So in order to avoid trouble, the default save location has also changed.
 
+## Proxy settings
+
+You can set proxy settings which `cURL` knows. For example, a SOCKS5-with-remote-DNS-resolution:
+
+```
+$ export all_proxy="socks5h://127.0.0.1:1080"
+$ ./novel.sh ...
+```
+
+And you can use `export` in `pixiv-config` to avoid typing manually every time.
+
+## Automatically rename files
+
+Author may change their nickname, their serieses' name, etc. pixiv-novel-save now can automatically rename them. To learn more, see [this](https://github.com/thdaemon/pixiv-novel-saver/pull/1).
+
+But pixiv-novel-save will NOT rename novels' name. The philosophy is that if the author changes the name of novels, it means that the author updated the novel, even if the author did not modify the content. pixiv-novel-saver will usually keep old versions of novels.
+
 ## Built-In Login support
 
 It is very sad that pixiv.net login interface is protected by reCAPTCHA. If you have some methods to bypass it, please contact me.
@@ -141,4 +158,4 @@ It is very sad that pixiv.net login interface is protected by reCAPTCHA. If you 
 	
 	- [ ] A option to split pixiv novel chapters
 
-- [x] Automatic detect the author rename and series rename.
+- [x] Automatically detect the author rename and series rename.
