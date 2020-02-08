@@ -89,26 +89,12 @@ You may have noticed the uppercase letters before each novel in the output, whic
 
 - `C` when specify `--with-cover-image`, and this novel has an uncommon (author customized) cover image.
 
-## Line breaks
+## Line ending
 
-The line breaks in pixiv novels is no promises, usually it is CR or CRLF. You can use the "post hook" function to handle this automatically for each novel. Here is an example:
-
-```
-$ ./novel.sh -c -m -p --hook 'dos2unix -q'
-```
-
-On Windows, the "jq" program has a problem that will cause the linebreak becomes \r\r\n or \r\n (which should be \r\n and \n), the "unix2dos" can not handle it. The solusion is write a custom script like:
+The line breaks in pixiv novels is no promises, usually it is CR or CRLF. Now pixiv-novel-saver removed all CR before the LF automatically. So if you want to save files as DOS-format (CRLF), you can use the "post hook" function to handle this automatically for each novel. Here is an example:
 
 ```
-$ cat > post.sh <<EOF
-#!/bin/bash
-
-sed -i 's/\r//g' "$1"
-# And any other commands. For example, if you want to use CRLF, uncomment it:
-# unix2dos -q "$1"
-EOF
-$ chmod +x post.sh
-$ ./novel.sh -c -m -p --hook './post.sh'
+$ ./novel.sh -c -m -p --hook 'unix2dos -q'
 ```
 
 ## Notice
@@ -137,7 +123,7 @@ It is very sad that pixiv.net login interface is protected by reCAPTCHA. If you 
 
 - [x] Save novels from private (non-public) bookmarks
 
-- [ ] Automatically handle line breaks (CR, CRLF)
+- [x] Automatically handle line ending (CR, CRLF)
 
 - [x] Save more infomation of novels (tags, description, series, original, creation/uploaded date, etc)
 

@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.13'
+SCRIPT_VERSION='0.2.15'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -402,7 +402,7 @@ write_file_atom() {
 	mkdir -p "`dirname "${filename_real}"`" || errquit "write_file_atom: command failed"
 
 	cat > "${filename}" <<EOF
-Saved by pixiv-novel-saver version ${SCRIPT_VERSION}
+Saved by pixiv-novel-saver version ${SCRIPT_VERSION} (${SCRIPT_RT_OSNAME})
 At ${START_DATE}
 https://github.com/thdaemon/pixiv-novel-saver
 
@@ -413,7 +413,7 @@ EOF
 		[[ "$i" == _* ]] || echo "${i}: ${__kv[$i]}" >> "${filename}"
 	done
 	echo "=============================" >> "${filename}"
-	echo "${content}" >> "${filename}"
+	echo "${content}" | sed 's/\r*$//g' >> "${filename}"
 
 	[ -n "${post_command}" ] && ${post_command} "${filename}"
 
@@ -767,6 +767,7 @@ done
 }
 
 START_DATE=`LANG=C LANGUAGE= LC_ALL=C date -R`
+SCRIPT_RT_OSNAME=`uname -s`
 
 dbg && append_to_array EXTRA_CURL_OPTIONS -v
 
