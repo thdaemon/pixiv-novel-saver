@@ -280,6 +280,8 @@ pixiv_get_novel() {
 	json_get_object "$tmp" body tmp
 	json_get_string "$tmp" content __novel
 
+	__novel=`sed 's/\r*$//g' <<< "$__novel"`
+
 	if [ -n "$3" ]; then
 		declare -n __meta="$3"
 		json_get_string "$tmp"  uploadDate  __meta[uploadDate]
@@ -429,7 +431,7 @@ EOF
 		[[ "$i" == _* ]] || echo "${i}: ${__kv[$i]}" >> "${filename}"
 	done
 	echo "=============================" >> "${filename}"
-	echo "${content}" | sed 's/\r*$//g' >> "${filename}"
+	echo "${content}" >> "${filename}"
 
 	[ -n "${post_command}" ] && ${post_command} "${filename}"
 
