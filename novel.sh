@@ -54,7 +54,7 @@ printdbg() {
 __sendpost() {
 	curl --compressed -s "${EXTRA_CURL_OPTIONS[@]}" "$1" \
 		-H "${useragent["${2:-desktop}"]}" \
-		-H "Accept: application/json" \
+		-H "Accept: ${3:-application/json}" \
 		-H 'Accept-Language: en_US,en;q=0.5' \
 		-H 'Referer: https://www.pixiv.net' \
 		-H 'DNT: 1' \
@@ -444,7 +444,7 @@ EOF
 download_cover_image() {
 	[[ "${1}" == *s.pximg.net/common/* ]] && return 1
 	mkdir -p "`dirname "${2}"`"
-	__sendpost "${1}" > "${2}" || errquit "cover image download failed"
+	__sendpost "${1}" desktop 'image/webp,*/*' > "${2}" || errquit "cover image download failed"
 	return 0
 }
 
