@@ -493,19 +493,44 @@ prepare_filename() {
 
 	local series_dir
 
-	[ "$RENAMING_DETECT" = '1' ] && rename_check "${DIR_PREFIX}${sdir}" "${meta[authorid]}-*" "${meta[authorid]}-${meta[author]}"
+	[ "$RENAMING_DETECT" = '1' ] && rename_check "${DIR_PREFIX}${sdir}" "${__meta[authorid]}-*" "${__meta[authorid]}-${__meta[author]}"
 
 	if [ "${NO_SERIES}" = '0' ]; then
-		if [ -z "${meta[series]}" ]; then
+		if [ -z "${__meta[series]}" ]; then
 			series_dir=""
 		else
-			series_dir="/${meta[series]}-${meta[series_name]}"
+			series_dir="/${__meta[series]}-${__meta[series_name]}"
 			__flags="${__flags}S"
-			[ "$RENAMING_DETECT" = '1' ] && rename_check "${DIR_PREFIX}${sdir}/${meta[authorid]}-${meta[author]}" "${meta[series]}-*" "${meta[series]}-${meta[series_name]}"
+			[ "$RENAMING_DETECT" = '1' ] && rename_check "${DIR_PREFIX}${sdir}/${__meta[authorid]}-${__meta[author]}" "${__meta[series]}-*" "${__meta[series]}-${__meta[series_name]}"
 		fi
 	fi
 
-	__filename="${DIR_PREFIX}${sdir}/${meta[authorid]}-${meta[author]}${series_dir}/${meta[id]}-${meta[title]}${lazytag}.txt"
+	__filename="${DIR_PREFIX}${sdir}/${__meta[authorid]}-${__meta[author]}${series_dir}/${__meta[id]}-${__meta[title]}${lazytag}.txt"
+}
+
+## post_novel_content_recv
+#    __meta - pointer to novel_meta associative array
+#    content - the novel content
+#    filename - pointer to recv filename
+#    __flags - pointer to flags var
+post_novel_content_recv() {
+	declare -n __meta="$1"
+	local content="$2"
+	local filename="$3"
+	declare -n __flags="$4"
+
+	if [ -z "${content}" ]; then
+		echo "[warning] empty novel content detected, but server responed a success hdr."
+		[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
+	fi
+
+	if [ "$WITH_COVER_IMAGE" = '1' -a -n "${__meta[_cover_image_uri]}" ]; then
+		download_cover_image "${__meta[_cover_image_uri]}" "${filename}.coverimage" && __flags="${__flags}C"
+	fi
+
+	printf "=> %-${_max_flag_len}s %-${_max_id_len}s %s %s\n" "$__flags" "${__meta[id]}" "'${__meta[title]}'" "${__meta[author]}"
+
+	write_file_atom "$filename" __meta "$content"
 }
 
 ## download_novel
@@ -542,22 +567,11 @@ download_novel() {
 
 	if [ "$ignore" = '0' ]; then
 		pixiv_get_novel "${meta[id]}" novel nmeta || pixiv_errquit pixiv_get_novel
-		if [ -z "${novel}" ]; then
-			echo "[warning] empty novel content detected, but server responed a success hdr."
-			[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
-		fi
-
 		for i in "${!nmeta[@]}"; do
 			[ -z "${meta[$i]}" ] && meta[$i]="${nmeta[$i]}"
 		done
 
-		if [ "$WITH_COVER_IMAGE" = '1' -a -n "${meta[_cover_image_uri]}" ]; then
-			download_cover_image "${meta[_cover_image_uri]}" "${filename}.coverimage" && flags="${flags}C"
-		fi
-
-		printf "=> %-${_max_flag_len}s %-${_max_id_len}s %s %s\n" "$flags" "${meta[id]}" "'${meta[title]}'" "${meta[author]}"
-
-		write_file_atom "$filename" meta "$novel"
+		post_novel_content_recv meta "$novel" "$filename" flags
 	else
 		printf "=> %-${_max_flag_len}s %-${_max_id_len}s %s %s\n" "$flags" "${meta[id]}" "'${meta[title]}'" "${meta[author]}"
 		[ -n "${post_command_ignored}" ] && ${post_command_ignored} "${filename}"
@@ -570,26 +584,16 @@ save_id() {
 	local id="$1"
 	local flags='N'
 
-	local series_dir filename content
+	local filename content
 	declare -A meta
 
 	pixiv_get_novel "$id" content meta || pixiv_errquit pixiv_get_novel
-	if [ -z "$content" ]; then
-		echo "[warning] empty novel content detected, but server responed a success hdr."
-		[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
-	fi
 
 	trick_meta meta
 
 	prepare_filename meta '/singles' '' flags filename
 
-	if [ "$WITH_COVER_IMAGE" = '1' -a -n "${meta[_cover_image_uri]}" ]; then
-		download_cover_image "${meta[_cover_image_uri]}" "${filename}.coverimage" && flags="${flags}C"
-	fi
-
-	printf "=> %-${_max_flag_len}s %-${_max_id_len}s %s %s\n" "$flags" "${meta[id]}" "'${meta[title]}'" "${meta[author]}"
-
-	write_file_atom "$filename" meta "$content"
+	post_novel_content_recv meta "$content" "$filename" flags
 }
 
 save_my_bookmarks() {
