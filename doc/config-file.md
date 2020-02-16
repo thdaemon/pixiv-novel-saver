@@ -85,6 +85,7 @@ Command-line option|Configure file equivalent
 `-w <NPP>`, `--window-size <NPP>`|`NOVELS_PER_PAGE=<NPP>`
 `-u`, `--disable-lazy-mode`|`NO_LAZY_UNCON=1`
 `-R`, `--no-renaming-detect`|`RENAMING_DETECT=0`
+`--path-id-only`|`RENAMING_DETECT=0; DIRNAME_ONLY_ID=1` (You must specify both config, or you may meet problems)
 `--with-cover-image`|`WITH_COVER_IMAGE=1`
 `-e "<command>"`, `--hook "<command>"`|`post_command="<command>"`
 `--ignored-post-hook "<command>"`|`post_command_ignored="<command>"`

@@ -150,8 +150,6 @@ It is very sad that pixiv.net login interface is protected by reCAPTCHA. If you 
 
 	- [x] A option to disable all lazy modes unconditionally
 
-	- [ ] A option to allow to strip non-ascii title in filename
-
 	- [x] A option to save cover image of novels
 
 	- [ ] A option to save inline images in novels

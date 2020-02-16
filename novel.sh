@@ -13,6 +13,7 @@ ABORT_WHILE_EMPTY_CONTENT=1
 LAZY_TEXT_COUNT=0
 NO_LAZY_UNCON=0
 RENAMING_DETECT=1
+DIRNAME_ONLY_ID=0
 NO_SERIES=0
 WITH_COVER_IMAGE=0
 
@@ -364,7 +365,8 @@ MISC OPTIONS:
                              (Not available in --save-author and --save-novel)
   -u, --disable-lazy-mode  Disable all lazy modes unconditionally
   -R, --no-renaming-detect Do not detect author/series renaming
-  --strip-nonascii-title   Strip non-ASCII title characters (not impl)
+  --path-id-only           Do not append name to dir path, IDs only
+                             (Will active -R, --no-renaming-detect)
   --with-cover-image       Download the cover image of novels only if the image
                              is NOT a common cpver image
   --with-inline-image      (not impl)
@@ -493,19 +495,28 @@ prepare_filename() {
 
 	local series_dir
 
-	[ "$RENAMING_DETECT" = '1' ] && rename_check "${DIR_PREFIX}${sdir}" "${__meta[authorid]}-*" "${__meta[authorid]}-${__meta[author]}"
+	local author="-${__meta[author]}"
+	local series_name="-${__meta[series_name]}"
+	local title="-${__meta[title]}"
+	if [ "$DIRNAME_ONLY_ID" = '1' ]; then
+		author=""
+		series_name=""
+		title=""
+	fi
+
+	[ "$RENAMING_DETECT" = '1' ] && rename_check "${DIR_PREFIX}${sdir}" "${__meta[authorid]}-*" "${__meta[authorid]}${author}"
 
 	if [ "${NO_SERIES}" = '0' ]; then
 		if [ -z "${__meta[series]}" ]; then
 			series_dir=""
 		else
-			series_dir="/${__meta[series]}-${__meta[series_name]}"
+			series_dir="/${__meta[series]}${series_name}"
 			__flags="${__flags}S"
-			[ "$RENAMING_DETECT" = '1' ] && rename_check "${DIR_PREFIX}${sdir}/${__meta[authorid]}-${__meta[author]}" "${__meta[series]}-*" "${__meta[series]}-${__meta[series_name]}"
+			[ "$RENAMING_DETECT" = '1' ] && rename_check "${DIR_PREFIX}${sdir}/${__meta[authorid]}${author}" "${__meta[series]}-*" "${__meta[series]}${series_name}"
 		fi
 	fi
 
-	__filename="${DIR_PREFIX}${sdir}/${__meta[authorid]}-${__meta[author]}${series_dir}/${__meta[id]}-${__meta[title]}${lazytag}.txt"
+	__filename="${DIR_PREFIX}${sdir}/${__meta[authorid]}${author}${series_dir}/${__meta[id]}${title}${lazytag}.txt"
 }
 
 ## post_novel_content_recv
@@ -749,6 +760,10 @@ while [ "$#" -gt 0 ]; do
 		;;
 	-R|--no-renaming-detect)
 		RENAMING_DETECT=0
+		;;
+	--path-id-only)
+		RENAMING_DETECT=0
+		DIRNAME_ONLY_ID=1
 		;;
 	-E|--ignore-empty)
 		ABORT_WHILE_EMPTY_CONTENT=0
