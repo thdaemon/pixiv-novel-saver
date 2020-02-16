@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.18'
+SCRIPT_VERSION='0.2.19'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -16,6 +16,7 @@ RENAMING_DETECT=1
 DIRNAME_ONLY_ID=0
 NO_SERIES=0
 WITH_COVER_IMAGE=0
+WITH_INLINE_IMAGES=0
 
 bookmarks=0
 private=0
@@ -337,7 +338,7 @@ pixiv_get_illust_url_original() {
 usage() {
 	cat <<EOF
 Pixiv novel saver ${SCRIPT_VERSION}
-Copyright thdaemon <thxdaemon@gmail.com>
+Copyright thxdaemon <thxdaemon@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -367,10 +368,9 @@ MISC OPTIONS:
   -R, --no-renaming-detect Do not detect author/series renaming
   --path-id-only           Do not append name to dir path, IDs only
                              (Will active -R, --no-renaming-detect)
-  --with-cover-image       Download the cover image of novels only if the image
-                             is NOT a common cpver image
-  --with-inline-image      (not impl)
-  --parse-pixiv-chapters   (not impl)
+  --with-cover-image       Download the cover image of novels if and only if
+                             the image is NOT a common cover image
+  --with-inline-images     Download inline images in novels to <DIR>/illusts
   -e, --hook "<command>" Run 'cmd "\$filename"' for each downloaded novel
                              (note: the tmp file will be renamed after hook)
   --ignored-post-hook "<command>"
@@ -448,6 +448,29 @@ download_cover_image() {
 	mkdir -p "`dirname "${2}"`"
 	__sendpost "${1}" desktop 'image/webp,*/*' > "${2}" || errquit "cover image download failed"
 	return 0
+}
+
+## download_inline_images
+#    content - the novel's content
+download_inline_images() {
+	local illust
+	local ext
+	local url=''
+	local stat='done'
+
+	for i in `grep -o -E '\[pixivimage:[0-9]+\]' <<< "$1"`; do
+		illust=`echo "$i" | cut -d : -f 2 | cut -d ] -f 1`
+		pixiv_get_illust_url_original "$illust" url || echo "[warning] pixiv_get_illust_url_original: $pixiv_error"
+		if [ -z "$url" ]; then
+			stat="ignored, illust may not exist or be removed"
+		else
+			ext="${url##*.}"
+			grep -E "^[a-zA-Z0-9]+$" <<< "$ext" > /dev/null 2>&1 || ext='image'
+			mkdir -p "${DIR_PREFIX}/illusts/" || errquit "download_inline_images: command failed"
+			__sendpost "${url}" desktop 'image/webp,*/*' > "${DIR_PREFIX}/illusts/${illust}.${ext}" || errquit "inline image(s) download failed"
+		fi
+		echo "   => Downloading illust $illust $stat"
+	done
 }
 
 ## rename_check
@@ -537,6 +560,10 @@ post_novel_content_recv() {
 
 	if [ "$WITH_COVER_IMAGE" = '1' -a -n "${__meta[_cover_image_uri]}" ]; then
 		download_cover_image "${__meta[_cover_image_uri]}" "${filename}.coverimage" && __flags="${__flags}C"
+	fi
+
+	if [ "$WITH_INLINE_IMAGES" = '1' ]; then
+		download_inline_images "$content"
 	fi
 
 	printf "=> %-${_max_flag_len}s %-${_max_id_len}s %s %s\n" "$__flags" "${__meta[id]}" "'${__meta[title]}'" "${__meta[author]}"
@@ -800,6 +827,9 @@ while [ "$#" -gt 0 ]; do
 		;;
 	--with-cover-image)
 		WITH_COVER_IMAGE=1
+		;;
+	--with-inline-images)
+		WITH_INLINE_IMAGES=1
 		;;
 	-h|*)
 		usage "$0"

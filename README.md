@@ -97,10 +97,6 @@ The line breaks in pixiv novels is no promises, usually it is CR or CRLF. Now pi
 $ ./novel.sh -c -m -p --hook 'unix2dos -q'
 ```
 
-## Notice
-
-0.2.x version is not compatible with 0.1.x version. So in order to avoid trouble, the default save location has also changed.
-
 ## Proxy settings
 
 You can set proxy settings which `cURL` knows. For example, a SOCKS5-with-remote-DNS-resolution:
@@ -122,6 +118,10 @@ But pixiv-novel-save will NOT rename novels' name. The philosophy is that if the
 
 It is very sad that pixiv.net login interface is protected by reCAPTCHA. If you have some methods to bypass it, please contact me.
 
+## Notice
+
+0.2.x version is not compatible with 0.1.x version. So in order to avoid trouble, the default save location has also changed.
+
 ## TODO
 
 - [x] Basic features available
@@ -130,13 +130,13 @@ It is very sad that pixiv.net login interface is protected by reCAPTCHA. If you 
 
 - [x] Lazy Mode, Avoid repeated saves after the second time
 
+- [x] Refactor ugly old pixiv functions implementations
+
 - [ ] Add built-in login for pixiv.net (IT MAY NOT)
 
 - [x] Save novels from author userid
 
 - [x] Save novels from series id
-
-- [x] Refactor ugly old pixiv functions implementations
 
 - [x] Save novels from private (non-public) bookmarks
 
@@ -146,14 +146,10 @@ It is very sad that pixiv.net login interface is protected by reCAPTCHA. If you 
 
 - [x] Post-hook: run a command for each downloaded/ignored novel
 
-- [ ] Implement all unimplemented options (`(not impl)` in `-h` usage)
+- [x] A option to save cover image of novels
 
-	- [x] A option to disable all lazy modes unconditionally
-
-	- [x] A option to save cover image of novels
-
-	- [ ] A option to save inline images in novels
+- [x] A option to save inline images in novels
 	
-	- [ ] A option to split pixiv novel chapters
+- [ ] Allow user to specify skip and/or max number of novels/pages for specify bookmark/series/author
 
 - [x] Automatically detect the author rename and series rename.
