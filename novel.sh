@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.17'
+SCRIPT_VERSION='0.2.18'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -26,7 +26,7 @@ post_command=''
 post_command_ignored=''
 
 declare -A useragent
-useragent[desktop]="User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:72.0) Gecko/20100101 Firefox/72.0"
+useragent[desktop]="User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0"
 useragent[mobile]="User-Agent: Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox/68.0"
 
 EXTRA_CURL_OPTIONS=()
@@ -727,6 +727,11 @@ save_series() {
 	done
 }
 
+[ -f pixiv-config ] && {
+	source pixiv-config
+	echo "[info] user specific configuration loaded"
+}
+
 while [ "$#" -gt 0 ]; do
 	case "$1" in
 	-c|--lazy-text-count)
@@ -791,11 +796,6 @@ while [ "$#" -gt 0 ]; do
 	esac
 	shift
 done
-
-[ -f pixiv-config ] && {
-	source pixiv-config
-	echo "[info] user specific configuration loaded"
-}
 
 START_DATE=`LANG=C LANGUAGE= LC_ALL=C date -R`
 SCRIPT_RT_OSNAME=`uname -s`
