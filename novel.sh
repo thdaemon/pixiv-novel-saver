@@ -419,7 +419,7 @@ write_file_atom() {
 
 	local filename="${filename_real}.tmp"
 
-	mkdir -p "`dirname "${filename_real}"`" || errquit "write_file_atom: command failed"
+	mkdir -p -- "`dirname -- "${filename_real}"`" || errquit "write_file_atom: command failed"
 
 	cat > "${filename}" <<EOF
 Saved by pixiv-novel-saver version ${SCRIPT_VERSION} (${SCRIPT_RT_OSNAME})
@@ -437,7 +437,7 @@ EOF
 
 	[ -n "${post_command}" ] && ${post_command} "${filename}"
 
-	mv "${filename}" "${filename_real}" || errquit "write_file_atom: command failed"
+	mv -- "${filename}" "${filename_real}" || errquit "write_file_atom: command failed"
 }
 
 ## download_cover_image
@@ -445,7 +445,7 @@ EOF
 #    filename: the file to save data
 download_cover_image() {
 	[[ "${1}" == *s.pximg.net/common/* ]] && return 1
-	mkdir -p "`dirname "${2}"`"
+	mkdir -p -- "`dirname -- "${2}"`"
 	__sendpost "${1}" desktop 'image/webp,*/*' > "${2}" || errquit "cover image download failed"
 	return 0
 }
@@ -466,7 +466,7 @@ download_inline_images() {
 		else
 			ext="${url##*.}"
 			grep -E "^[a-zA-Z0-9]+$" <<< "$ext" > /dev/null 2>&1 || ext='image'
-			mkdir -p "${DIR_PREFIX}/illusts/" || errquit "download_inline_images: command failed"
+			mkdir -p -- "${DIR_PREFIX}/illusts/" || errquit "download_inline_images: command failed"
 			__sendpost "${url}" desktop 'image/webp,*/*' > "${DIR_PREFIX}/illusts/${illust}.${ext}" || errquit "inline image(s) download failed"
 		fi
 		echo "   => Downloading illust $illust $stat"
