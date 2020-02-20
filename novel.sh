@@ -70,6 +70,7 @@ invoke_curl() {
 		-useragent) ua="$2"; shift ;;
 		-accept) append_to_array opts '-H' "Accept: $2"; shift ;;
 		-referer) append_to_array opts '-H' "Referer: $2"; shift ;;
+		-origin) append_to_array opts '-H' "Origin: $2"; shift ;;
 		-cookie) append_to_array opts '-H' "Cookie: $2"; shift ;;
 		esac
 		shift
@@ -86,12 +87,16 @@ invoke_curl() {
 invoke_rest_api() {
 	dbg && printdbg "> $1 $2"
 
+	declare -a extra_opts
 	local referer="https://www.pixiv.net"
 	local uri="${API_GATEWAY_HOST[${1}]}$2"
 	local ua="${useragent["${3:-desktop}"]}"
+
+	[[ $uri = $referer* ]] || append_to_array extra_opts -origin "$referer"
+
 	shift 3
 
-	resp=`invoke_curl -uri "$uri" -useragent "$ua" -accept "application/json" -referer "$referer" -cookie "${COOKIE}" "$@"`
+	resp=`invoke_curl -uri "$uri" -useragent "$ua" -accept "application/json" -referer "$referer" -cookie "${COOKIE}" "${extra_opts[@]}" "$@"`
 
 	dbg && echo "$resp" | jq >&2
 	echo "$resp"
