@@ -317,6 +317,37 @@ pixiv_list_novels_by_series() {
 	return 0
 }
 
+## pixivfanbox_list_post
+#    type - 'first' or 'next
+#    target - the userid while type is first, URL while type is next
+#    __items - a pointer to recv items
+#    __next_url - a pointer to recv URL for next page, blank means ending
+pixivfanbox_list_post() {
+	local scope api
+
+	case "$1" in
+	first)
+		scope=pixivFANBOX
+		api="api/post.listCreator?userId=${2}&limit=10"
+		;;
+	next)
+		scope=raw
+		api="${2}"
+		;;
+	esac
+
+	declare -n  __items="$3"
+	declare -n  __next_url="$4"
+
+	local tmp
+
+	tmp=`invoke_rest_api "$scope" "$api"`
+	__pixivfanbox_parsehdr "$tmp" pixiv_error || return 1
+
+	json_get_object "$tmp" body.items items
+	json_get_string "$tmp" body.nextUrl __next_url
+}
+
 ## pixiv_get_novel
 #    novelid - the ID of the novel
 #    __novel - a pointer to recv novel content
