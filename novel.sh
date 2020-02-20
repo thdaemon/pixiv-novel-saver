@@ -192,6 +192,26 @@ __pixiv_parsehdr() {
 #	return 0
 #}
 
+__pixivfanbox_parsehdr() {
+	local tmp
+	declare -n  __msg="$2"
+
+	if [ -n "$1" ]; then
+		if json_has "$1" error ; then
+			json_get_string "$1" error tmp
+			__msg="server respond: $tmp"
+			return 1
+		elif ! json_has "$1" body ; then
+			__msg="network error"
+			return 1
+		fi
+	else
+		__msg="network error"
+		return 1
+	fi
+	return 0
+}
+
 ## pixiv_errquit
 #    name - the name of "subprogram" which throw a error
 pixiv_errquit() {
