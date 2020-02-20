@@ -32,8 +32,9 @@ useragent[desktop]="Mozilla/5.0 (X11; Linux x86_64; rv:73.0) Gecko/20100101 Fire
 useragent[mobile]="Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox/68.0"
 
 declare -A API_GATEWAY_HOST
-API_GATEWAY_HOST[pixiv]="www.pixiv.net"
-API_GATEWAY_HOST[pixivFANBOX]="fanbox.pixiv.net"
+API_GATEWAY_HOST[raw]=""
+API_GATEWAY_HOST[pixiv]="https://www.pixiv.net/"
+API_GATEWAY_HOST[pixivFANBOX]="https://fanbox.pixiv.net/"
 
 EXTRA_CURL_OPTIONS=()
 
@@ -85,8 +86,8 @@ invoke_curl() {
 invoke_rest_api() {
 	dbg && printdbg "> $1 $2"
 
-	local referer="https://${API_GATEWAY_HOST[${1}]}"
-	local uri="$referer/$2"
+	local referer="https://www.pixiv.net"
+	local uri="${API_GATEWAY_HOST[${1}]}$2"
 	local ua="${useragent["${3:-desktop}"]}"
 	shift 3
 
