@@ -67,7 +67,7 @@ invoke_curl() {
 		case "$1" in
 		-uri) uri="$2"; shift ;;
 		-append) append_to_array opts '-H' "$2"; shift ;;
-		-useragent) ua="User-Agent: $2"; shift ;;
+		-useragent) ua="$2"; shift ;;
 		-accept) append_to_array opts '-H' "Accept: $2"; shift ;;
 		-referer) append_to_array opts '-H' "Referer: $2"; shift ;;
 		-cookie) append_to_array opts '-H' "Cookie: $2"; shift ;;
