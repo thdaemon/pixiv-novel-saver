@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.20'
+SCRIPT_VERSION='0.2.21'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -96,9 +96,13 @@ invoke_rest_api() {
 	echo "$resp"
 }
 
-# FIXME - Remove old compat func
-__sendpost() {
-	invoke_curl -uri "$1" -useragent "${useragent["${2:-desktop}"]}" -accept "${3:-application/json}" -referer "https://www.pixiv.net" -cookie "${COOKIE}"
+invoke_curl_simple_download() {
+	local uri="$1"
+	local ua="${useragent["${2:-desktop}"]}"
+	local accept="$3"
+	shift 3
+
+	invoke_curl -uri "$uri" -useragent "${useragent["${2:-desktop}"]}" -accept "$accept" -referer "https://www.pixiv.net" -cookie "${COOKIE}" "$@"
 }
 
 json_has() {
@@ -305,7 +309,7 @@ pixiv_list_novels_by_series() {
 
 	local tmp
 
-	tmp=`sendpost "ajax/novel/series_content/${seriesid}?limit=${NOVELS_PER_PAGE}&last_order=${offset}&order_by=asc"`
+	tmp=`invoke_rest_api pixiv "ajax/novel/series_content/${seriesid}?limit=${NOVELS_PER_PAGE}&last_order=${offset}&order_by=asc"`
 	__pixiv_parsehdr "$tmp" pixiv_error || return 1
 
 	json_get_object "$tmp" body.seriesContents __novels
@@ -492,7 +496,7 @@ EOF
 download_cover_image() {
 	[[ "${1}" == *s.pximg.net/common/* ]] && return 1
 	mkdir -p -- "`dirname -- "${2}"`"
-	__sendpost "${1}" desktop 'image/webp,*/*' > "${2}" || errquit "cover image download failed"
+	invoke_curl_simple_download "${1}" desktop 'image/webp,*/*' > "${2}" || errquit "cover image download failed"
 	return 0
 }
 
@@ -513,7 +517,7 @@ download_inline_images() {
 			ext="${url##*.}"
 			grep -E "^[a-zA-Z0-9]+$" <<< "$ext" > /dev/null 2>&1 || ext='image'
 			mkdir -p -- "${DIR_PREFIX}/illusts/" || errquit "download_inline_images: command failed"
-			__sendpost "${url}" desktop 'image/webp,*/*' > "${DIR_PREFIX}/illusts/${illust}.${ext}" || errquit "inline image(s) download failed"
+			invoke_curl_simple_download "${url}" desktop 'image/webp,*/*' > "${DIR_PREFIX}/illusts/${illust}.${ext}" || errquit "inline image(s) download failed"
 		fi
 		echo "   => Downloading illust $illust $stat"
 	done
