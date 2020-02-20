@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.19'
+SCRIPT_VERSION='0.2.20'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -28,8 +28,12 @@ post_command=''
 post_command_ignored=''
 
 declare -A useragent
-useragent[desktop]="User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0"
-useragent[mobile]="User-Agent: Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox/68.0"
+useragent[desktop]="Mozilla/5.0 (X11; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0"
+useragent[mobile]="Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox/68.0"
+
+declare -A API_GATEWAY_HOST
+API_GATEWAY_HOST[pixiv]="www.pixiv.net"
+API_GATEWAY_HOST[pixivFANBOX]="fanbox.pixiv.net"
 
 EXTRA_CURL_OPTIONS=()
 
@@ -53,26 +57,53 @@ printdbg() {
 	echo "[debug] $*" >&2
 }
 
-__sendpost() {
-	curl --compressed -s "${EXTRA_CURL_OPTIONS[@]}" "$1" \
-		-H "${useragent["${2:-desktop}"]}" \
-		-H "Accept: ${3:-application/json}" \
+invoke_curl() {
+	local uri
+	local ua="pixiv-novel-saver/$SCRIPT_VERSION ($SCRIPT_RT_OSNAME) GNUBash/$BASH_VERSION"
+	declare -a opts
+
+	while [ "$#" -gt 0 ]; do
+		case "$1" in
+		-uri) uri="$2"; shift ;;
+		-append) append_to_array opts '-H' "$2"; shift ;;
+		-useragent) ua="User-Agent: $2"; shift ;;
+		-accept) append_to_array opts '-H' "Accept: $2"; shift ;;
+		-referer) append_to_array opts '-H' "Referer: $2"; shift ;;
+		-cookie) append_to_array opts '-H' "Cookie: $2"; shift ;;
+		esac
+		shift
+	done
+
+	curl --compressed -s "${EXTRA_CURL_OPTIONS[@]}" "$uri" \
+		-H "User-Agent: $ua" \
 		-H 'Accept-Language: en_US,en;q=0.5' \
-		-H 'Referer: https://www.pixiv.net' \
+		"${opts[@]}" \
 		-H 'DNT: 1' \
-		-H "Cookie: ${COOKIE}" \
 		-H 'TE: Trailers'
 }
 
-sendpost() {
-	local uri="https://www.pixiv.net/$1"
-	dbg && printdbg "> $1"
-	shift
+invoke_rest_api() {
+	dbg && printdbg "> $1 $2"
 
-	resp=`__sendpost "$uri" "$@"`
+	local referer="https://${API_GATEWAY_HOST[${1}]}"
+	local uri="$referer/$2"
+	local ua="${useragent["${3:-desktop}"]}"
+	shift 3
+
+	resp=`invoke_curl -uri "$uri" -useragent "$ua" -accept "application/json" -referer "$referer" -cookie "${COOKIE}" "$@"`
 
 	dbg && echo "$resp" | jq >&2
 	echo "$resp"
+}
+
+# FIXME - Remove old compat func
+__sendpost() {
+	invoke_curl -uri "$1" -useragent "${useragent["${2:-desktop}"]}" -accept "${3:-application/json}" -referer "https://www.pixiv.net" -cookie "${COOKIE}"
+}
+
+# FIXME - Remove old compat func
+sendpost() {
+	invoke_rest_api pixiv "$@"
 }
 
 json_has() {
