@@ -101,11 +101,6 @@ __sendpost() {
 	invoke_curl -uri "$1" -useragent "${useragent["${2:-desktop}"]}" -accept "${3:-application/json}" -referer "https://www.pixiv.net" -cookie "${COOKIE}"
 }
 
-# FIXME - Remove old compat func
-sendpost() {
-	invoke_rest_api pixiv "$@"
-}
-
 json_has() {
 	jq -e "has(\"${2}\")" <<< "$1" > /dev/null
 }
@@ -227,7 +222,7 @@ pixiv_get_user_info() {
 
 	local tmp
 
-	tmp=`sendpost "ajax/user/${userid}?full=0"`
+	tmp=`invoke_rest_api pixiv "ajax/user/${userid}?full=0"`
 	__pixiv_parsehdr "$tmp" pixiv_error || return 1
 
 	__meta[id]="$userid"
@@ -246,7 +241,7 @@ pixiv_get_series_info() {
 
 	local tmp
 
-	tmp=`sendpost "ajax/novel/series/${seriesid}"`
+	tmp=`invoke_rest_api pixiv "ajax/novel/series/${seriesid}"`
 	__pixiv_parsehdr "$tmp" pixiv_error || return 1
 
 	json_get_integer "$tmp" body.userId                    __meta[authorid]
@@ -270,7 +265,7 @@ pixiv_list_novels_by_bookmarks() {
 
 	local tmp
 
-	tmp=`sendpost "ajax/user/${userid}/novels/bookmarks?tag=&offset=${offset}&limit=${NOVELS_PER_PAGE}&rest=${rest}"`
+	tmp=`invoke_rest_api pixiv "ajax/user/${userid}/novels/bookmarks?tag=&offset=${offset}&limit=${NOVELS_PER_PAGE}&rest=${rest}"`
 	__pixiv_parsehdr "$tmp" pixiv_error || return 1
 
 	json_get_object "$tmp" body.works __novels
@@ -291,7 +286,7 @@ pixiv_list_novels_by_author() {
 
 	local tmp
 
-	tmp=`sendpost "touch/ajax/user/novels?id=${userid}&p=${page}" mobile`
+	tmp=`invoke_rest_api pixiv "touch/ajax/user/novels?id=${userid}&p=${page}" mobile`
 	__pixiv_parsehdr "$tmp" pixiv_error || return 1
 
 	json_get_object "$tmp" body.novels __novels
@@ -327,7 +322,7 @@ pixiv_get_novel() {
 
 	local tmp tags ntags tag tagval tagmeta
 
-	tmp=`sendpost "ajax/novel/${novelid}"`
+	tmp=`invoke_rest_api pixiv "ajax/novel/${novelid}"`
 	__pixiv_parsehdr "$tmp" pixiv_error || return 1
 
 	json_get_object "$tmp" body tmp
@@ -379,7 +374,7 @@ pixiv_get_illust_url_original() {
 
 	local tmp
 
-	tmp=`sendpost "ajax/illust/${id}/pages"`
+	tmp=`invoke_rest_api pixiv "ajax/illust/${id}/pages"`
 	__pixiv_parsehdr "$tmp" pixiv_error || return 1
 
 	json_get_string "$tmp" body[0].urls.original __url
