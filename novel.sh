@@ -154,6 +154,11 @@ json_array_get_item() {
 	json_get_object "${1}" "[${2}]" __msg_
 }
 
+json_array_get_string_item() {
+	declare -n  __msg_="${3}"
+	json_get_string "${1}" "[${2}]" __msg_
+}
+
 errquit() {
 	echo "[error] $1"
 	exit 1
