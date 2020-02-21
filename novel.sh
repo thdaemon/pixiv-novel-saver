@@ -358,6 +358,60 @@ pixivfanbox_list_post() {
 	json_get_string "$tmp" body.nextUrl __next_url
 }
 
+## pixivfanbox_get_post
+#    id - the ID of the post
+#    __data - a pointer to recv post content
+#    __meta (optional) - a pointer to recv some post infomation
+pixivfanbox_get_post() {
+	local id="$1"
+	declare -n __data="$2"
+	declare -n __meta="$3"
+	local tmp tags tagmeta ntags tag
+
+	tmp=`invoke_rest_api pixivFANBOX "api/post.info?postId=$id"`
+	__pixivfanbox_parsehdr "$tmp" pixiv_error || return 1
+
+	json_get_object "$tmp" body tmp
+	json_get_string "$tmp" type __meta[type]
+
+	case "${__meta[type]}" in
+	text)
+		json_get_string "$tmp" body.text __data
+		;;
+	article)
+		json_get_object "$tmp" body.blocks __data
+		;;
+	*)
+		pixiv_error="Unsupported post type ${__meta[type]}'"
+		return 2
+		;;
+	esac
+
+	if [ -n "$3" ]; then
+		json_get_integer "$tmp" id                __meta[id]
+		json_get_string "$tmp"  title             __meta[title]
+		json_get_integer "$tmp" user.userId       __meta[authorid]
+		json_get_string "$tmp"  user.name         __meta[author]
+		json_get_string "$tmp"  coverImageUrl     __meta[_cover_image_uri]
+		json_get_string "$tmp"  publishedDatetime __meta[publishedDatetime]
+		json_get_string "$tmp"  updatedDatetime   __meta[updatedDatetime]
+		json_get_string "$tmp"  restrictedFor     __meta[restrictedFor]
+
+		if json_has "$tmp" tags ; then
+			json_get_object "$tmp" tags tags
+			ntags=`json_array_n_items "$tags"`
+			for i in `seq 0 $(( ${ntags} - 1 ))`; do
+				json_array_get_string_item "$tags" "$i" tag
+				tagmeta="${tagmeta}${tag}, "
+			done
+
+			__meta[tags]="${tagmeta%, }"
+		fi
+	fi
+
+	return 0
+}
+
 ## pixiv_get_novel
 #    novelid - the ID of the novel
 #    __novel - a pointer to recv novel content
