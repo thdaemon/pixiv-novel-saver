@@ -379,7 +379,7 @@ pixivfanbox_get_post() {
 		json_get_string "$tmp" body.text __data
 		;;
 	article)
-		json_get_object "$tmp" body.blocks __data
+		json_get_object "$tmp" body __data
 		;;
 	*)
 		pixiv_error="Unsupported post type ${__meta[type]}'"
