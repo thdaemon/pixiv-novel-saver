@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.21'
+SCRIPT_VERSION='0.2.23'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -689,6 +689,15 @@ prepare_filename() {
 	__filename="${DIR_PREFIX}${sdir}/${__meta[authorid]}${author}${series_dir}/${__meta[id]}${title}${lazytag}.txt"
 }
 
+## print_complete_line
+#    flags - flags of the novel/post
+#    __kv - pointer to a key-value pair to write
+print_complete_line() {
+	local flags="$1"
+	declare -n __kv="$2"
+	printf "=> %-${_max_flag_len}s %-${_max_id_len}s '%s' %s\n" "$flags" "${__kv[id]}" "${__kv[title]}" "${__kv[author]}"
+}
+
 ## post_novel_content_recv
 #    __meta - pointer to novel_meta associative array
 #    content - the novel content
@@ -713,7 +722,7 @@ post_novel_content_recv() {
 		download_inline_images "$content"
 	fi
 
-	printf "=> %-${_max_flag_len}s %-${_max_id_len}s %s %s\n" "$__flags" "${__meta[id]}" "'${__meta[title]}'" "${__meta[author]}"
+	print_complete_line "$__flags" __meta
 
 	write_file_atom "$filename" __meta "$content"
 }
@@ -758,7 +767,7 @@ download_novel() {
 
 		post_novel_content_recv meta "$novel" "$filename" flags
 	else
-		printf "=> %-${_max_flag_len}s %-${_max_id_len}s %s %s\n" "$flags" "${meta[id]}" "'${meta[title]}'" "${meta[author]}"
+		print_complete_line "$flags" meta
 		[ -n "${post_command_ignored}" ] && ${post_command_ignored} "${filename}"
 	fi
 }
