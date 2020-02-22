@@ -551,6 +551,7 @@ EOF
 trick_meta() {
 	declare -n __meta="$1"
 	[ -n "${__meta[title]}" ] && __meta[title]=`echo "${__meta[title]}" | tr '/' $_slash_replace_to`
+	[ -n "${__meta[author]}" ] && __meta[author]=`echo "${__meta[author]}" | tr '/' $_slash_replace_to`
 	[ -n "${__meta[series_name]}" ] && __meta[series_name]=`echo "${__meta[series_name]}" | tr '/' $_slash_replace_to`
 }
 
