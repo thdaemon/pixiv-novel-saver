@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.23'
+SCRIPT_VERSION='0.2.24'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -10,19 +10,24 @@ COOKIE=""
 USER_ID=""
 
 ABORT_WHILE_EMPTY_CONTENT=1
+ABORT_WHILE_FANBOX_POST_RESTRICTED=0
 LAZY_TEXT_COUNT=0
 NO_LAZY_UNCON=0
 RENAMING_DETECT=1
 DIRNAME_ONLY_ID=0
 NO_SERIES=0
+FANBOX_SAVE_RAW_DATA=1
 WITH_COVER_IMAGE=0
 WITH_INLINE_IMAGES=0
+WITH_INLINE_FILES=0
 
 bookmarks=0
 private=0
 novels=()
 serieses=()
 authors=()
+fanbox=()
+fanbox_authors=()
 
 post_command=''
 post_command_ignored=''
@@ -388,6 +393,8 @@ pixivfanbox_get_post() {
 	esac
 
 	if [ -n "$3" ]; then
+		__meta[pixivFANBOX]=yes
+
 		json_get_integer "$tmp" id                __meta[id]
 		json_get_string "$tmp"  title             __meta[title]
 		json_get_integer "$tmp" user.userId       __meta[authorid]
@@ -514,10 +521,18 @@ MISC OPTIONS:
   -R, --no-renaming-detect Do not detect author/series renaming
   --path-id-only           Do not append name to dir path, IDs only
                              (Will active -R, --no-renaming-detect)
-  --with-cover-image       Download the cover image of novels if and only if
-                             the image is NOT a common cover image
-  --with-inline-images     Download inline images in novels to <DIR>/illusts
-  -e, --hook "<command>" Run 'cmd "\$filename"' for each downloaded novel
+  --with-cover-image       Download the cover image of novels/posts if and only
+                             if the image is NOT a common cover image
+  --with-inline-images     Download inline images in novels/posts
+                             Download location:
+                             in novels: <DIR>/illusts
+                             in fanbox posts: images subdir of posts saved
+  --with-inline-files      Download inline files in fanbox posts
+                             Download location: files subdir of posts saved
+  --no-ignore-fanbox-restricted
+                           fanbox posts restricted will be treated as error
+  --no-save-fanbox-raw     Do not keep raw data for fanbox posts
+  -e, --hook "<command>"   Run 'cmd "\$filename"' for each downloaded novel
                              (note: the tmp file will be renamed after hook)
   --ignored-post-hook "<command>"
                            Run 'cmd "\$filename"' for each ignored novel
@@ -535,6 +550,10 @@ SOURCE OPTIONS:
                              Can be specified multiple times
   -A, --save-author <ID>   Save all public novels published by an author
                              Lazy mode: text count (enable it by -c)
+                             Can be specified multiple times
+  -f, --save-fanbox-post <ID>
+                           Save a fanbox post by its ID
+                             Lazy mode: never (not supported)
                              Can be specified multiple times
 
 EXAMPLES:
@@ -618,6 +637,34 @@ download_inline_images() {
 		fi
 		echo "   => Downloading illust $illust $stat"
 	done
+}
+
+## download_fanbox_inline_stuff
+#    type - 'image', 'file' or 'embed'(not-impl)
+#    id - image id/file id
+#    info - the infomation of the inline thing (image/file/embed(not-impl))
+#    prefix - the save prefix
+#    post_id  = the id of fanbox post
+download_fanbox_inline_stuff() {
+	local type="$1"
+	local id="$2"
+	local info="$3"
+	local prefix="$4"
+	local post_id="$5"
+
+	local url ext key name
+
+	case "$type" in
+	image) key=originalUrl ;;
+	file) key=url; json_get_string "$info" name name; name="-$name" ;;
+	esac
+
+	json_get_string "$info" "$key" url
+	json_get_string "$info" extension ext
+
+	echo "   => Downloading $type $id (in $post_id)"
+	mkdir -p -- "${prefix}/${type}/"
+	invoke_curl_simple_download "${url}" desktop '*/*' > "${prefix}/${type}/${post_id}-${id}${name}.${ext}" || errquit "fanbox inline $type download failed"
 }
 
 ## rename_check
@@ -727,6 +774,87 @@ post_novel_content_recv() {
 	write_file_atom "$filename" __meta "$content"
 }
 
+## post_fanbox_data_recv
+#    __meta - pointer to novel_meta associative array
+#    data - the post data, depends on __meta[type]
+#    filename - the save prefix
+#    __flags - pointer to flags var
+post_fanbox_data_recv() {
+	declare -n __meta="$1"
+	local data="$2"
+	local filename="$3"
+	declare -n __flags="$4"
+
+	local prefix=`dirname -- "$filename"`
+
+	local blocks n item item_text item_type content tmp
+
+	if [ -n "${__meta[restrictedFor]}" ]; then
+		__flags="${__flags}R"
+		if [ "$ABORT_WHILE_FANBOX_POST_RESTRICTED" = '1' ]; then
+			echo "[error] fanbox post ${__meta[authorid]}/${__meta[id]} is restricted. aborted."
+			exit 1
+		fi
+		if [ -z "$data" ]; then
+			print_complete_line "$__flags" __meta
+			return 0
+		fi
+	elif [ -z "${data}" ]; then
+		echo "[warning] empty post content detected, but server responed a success hdr."
+		[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
+	fi
+
+	[ "$WITH_COVER_IMAGE" = '1' -a -n "${__meta[_cover_image_uri]}" ] && \
+	       download_cover_image "${__meta[_cover_image_uri]}" "${filename}.coverimage" && __flags="${__flags}C"
+
+	case "${__meta[type]}" in
+	text)
+		write_file_atom "$filename" __meta "$data"
+		;;
+	article)
+		json_get_object "$data" blocks blocks
+		n=`json_array_n_items "$blocks"`
+		for i in `seq 0 $(( ${n} - 1 ))`; do
+			json_array_get_item "$blocks" "$i" item
+			json_get_string "$item" type item_type
+			case "$item_type" in
+			p)
+				json_get_string "$item" text item_text
+				content="$content"$'\n'"$item_text"
+				json_has "$item" links && echo "[warning] post_fanbox_data_recv: article: links stub"
+				json_has "$item" styles && echo "[warning] post_fanbox_data_recv: article: styles stub"
+				;;
+			image)
+				if [ "$WITH_INLINE_IMAGES" = '1' ]; then
+					json_get_string "$item" imageId item_text
+					json_get_object "$data" "imageMap.\"$item_text\"" tmp
+					download_fanbox_inline_stuff image "$item_text" "$tmp" "$prefix" "${__meta[id]}"
+				fi
+				;;
+			file)
+				if [ "$WITH_INLINE_FILES" = '1' ]; then
+					json_get_string "$item" fileId item_text
+					json_get_object "$data" "fileMap.\"$item_text\"" tmp
+					download_fanbox_inline_stuff file "$item_text" "$tmp" "$prefix" "${__meta[id]}"
+				fi
+				;;
+			*)
+				echo "[warning] post_fanbox_data_recv: article: type ${item_type}: stub"
+				;;
+			esac
+		done
+
+		[ "$FANBOX_SAVE_RAW_DATA" = '1' ] && write_file_atom "${filename}.raw" __meta "$data"
+		write_file_atom "$filename" __meta "$content"
+		;;
+	*)
+		echo "[warning] post_fanbox_data_recv: ${__meta[type]}: stub"
+		;;
+	esac
+
+	print_complete_line "$__flags" __meta
+}
+
 ## download_novel
 #    subdir - the subdir name
 #    meta - pointer to novel_meta associative array
@@ -774,20 +902,34 @@ download_novel() {
 
 ## save_id
 #    id - the novel ID
+#    type - novel (default), fanbox_post
 save_id() {
 	local id="$1"
+	local type="$2"
 	local flags='N'
+	local core_api_func=pixiv_get_novel
+	local path_prefix="/singles"
+	local post_func=post_novel_content_recv
+
+	case "$type" in
+	fanbox_post)
+		flags='F'
+		core_api_func=pixivfanbox_get_post
+		path_prefix="/fanbox-singles"
+		post_func=post_fanbox_data_recv
+		;;
+	esac
 
 	local filename content
 	declare -A meta
 
-	pixiv_get_novel "$id" content meta || pixiv_errquit pixiv_get_novel
+	$core_api_func "$id" content meta || pixiv_errquit $core_api_func
 
 	trick_meta meta
 
-	prepare_filename meta '/singles' '' flags filename
+	prepare_filename meta "$path_prefix" '' flags filename
 
-	post_novel_content_recv meta "$content" "$filename" flags
+	$post_func meta "$content" "$filename" flags
 }
 
 save_my_bookmarks() {
@@ -973,6 +1115,14 @@ while [ "$#" -gt 0 ]; do
 		authors[${#authors[@]}]="$2"
 		shift
 		;;
+	-f|--save-fanbox-post)
+		append_to_array fanbox "$2"
+		shift
+		;;
+	-F|--save-fanbox-user)
+		append_to_array fanbox_authors "$2"
+		shift
+		;;
 	-e|--hook)
 		post_command="$2"
 		shift
@@ -986,6 +1136,15 @@ while [ "$#" -gt 0 ]; do
 		;;
 	--with-inline-images)
 		WITH_INLINE_IMAGES=1
+		;;
+	--with-inline-files)
+		WITH_INLINE_FILES=1
+		;;
+	--no-ignore-fanbox-restricted)
+		ABORT_WHILE_FANBOX_POST_RESTRICTED=1
+		;;
+	--no-save-fanbox-raw)
+		FANBOX_SAVE_RAW_DATA=0
 		;;
 	-h|*)
 		usage "$0"
@@ -1033,5 +1192,13 @@ dbg && append_to_array EXTRA_CURL_OPTIONS -v
 	for i in "${serieses[@]}"; do
 		echo "[info] starting to save novels from series ID ${i}"
 		save_series "${i}"
+	done
+}
+
+[ "${#fanbox[@]}" = '0' ] || {
+	echo "[warning] pixivFANBOX support is early experimental, there are many things not completed. If you meet a problem, please submit an issue"
+	echo "[info] saving posts by fanbox post id..."
+	for i in "${fanbox[@]}"; do
+		save_id "$i" fanbox_post
 	done
 }

@@ -74,6 +74,12 @@ Same as `-A, --save-author <ID>`. Save all public novels published by an author
 append_to_array authors <ID>
 ```
 
+Same as `-f, --save-fanbox-post <ID>`. Save a fanbox post by its ID
+
+```
+append_to_array fanbox <ID>
+```
+
 ## Misc options
 
 Command-line option|Configure file equivalent
@@ -88,6 +94,9 @@ Command-line option|Configure file equivalent
 `--path-id-only`|`RENAMING_DETECT=0; DIRNAME_ONLY_ID=1` (You must specify both config, or you may meet problems)
 `--with-cover-image`|`WITH_COVER_IMAGE=1`
 `--with-inline-images`|`WITH_INLINE_IMAGES=1`
+`--with-inline-files`|`WITH_INLINE_FILES=1`
+`--no-ignore-fanbox-restricted`|`ABORT_WHILE_FANBOX_POST_RESTRICTED=1`
+`--no-save-fanbox-raw`|`FANBOX_SAVE_RAW_DATA=0`
 `-e "<command>"`, `--hook "<command>"`|`post_command="<command>"`
 `--ignored-post-hook "<command>"`|`post_command_ignored="<command>"`
 
@@ -97,8 +106,8 @@ Command-line option|Configure file equivalent
 ### Change useragent (desktop/mobile)
 
 ```
-useragent[desktop]="User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:72.0) Gecko/20100101 Firefox/72.0"
-useragent[mobile]="User-Agent: Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox/68.0"
+useragent[desktop]="Mozilla/5.0 (X11; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0"
+useragent[mobile]="Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox/68.0"
 ```
 
 ### Add extra cURL options

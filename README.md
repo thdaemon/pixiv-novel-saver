@@ -49,9 +49,11 @@ To save all novels by an author, you can use `-A <ID>` or `--save-author <ID>`. 
 
 To save all novels from a series, you can use `-s <ID>` or `--save-series <ID>`. (Can be specified multiple times)
 
-To save novels by it ID, you can use `-a <ID>` or `--save-novel <ID>`. (Can be specified multiple times)
+To save novels by its ID, you can use `-a <ID>` or `--save-novel <ID>`. (Can be specified multiple times)
 
-Some other options are useful, such as `-d, --no-series`, `-E, --ignore-empty`, `-w, --window-size`, `--with-cover-image`, `-R, --no-renaming-detect`, etc.
+To save pixivFANBOX post by its ID, you can use `-f <ID>` or `--save-fanbox-post <ID>` (Can be specified multiple times) (experimental supporting with semi-stubs)
+
+Some other options are useful, such as `-d, --no-series`, `-E, --ignore-empty`, `-w, --window-size`, `--with-cover-image`, `-R, --no-renaming-detect`, `--with-inline-images`, `--with-inline-files`, `--no-ignore-fanbox-restricted`, etc.
 
 For more infomation, run
 
@@ -69,7 +71,7 @@ Mode|Source|Description
 ----------|------------------|---------
 always (full supported)|`-s, --save-series`|For this source, Pixiv gives us "update time" before getting full content of novel. So lazy mode is always on. Novels will be updated only when the author updates their novel. It will avoid repeated saves after the second time. It's not dangerous.
 text count|`-m, --save-my-bookmarks`, `-p, --save-my-private` and `-A, --save-author`|For this source, Pixiv does NOT give us "update time" before getting full content of novel. However, there are still some ways to allow roughly guessing whether the novel has been updated, such as the number of words, but this is not 100% accurate. `-c` or `--lazy-text-count` option enables "text count" Lazy Mode. It's a little dangerous.
-never (not supported)|`-a, --save-novel`|For this source, lazy mode is impossible.
+never (not supported)|`-a, --save-novel`, `-f, --save-fanbox-post`|For these sources, lazy mode is impossible.
 
 To disable all lazy modes unconditionally, you can use specify `-u` or `--disable-lazy-mode` option. But usually not needed.
 
@@ -79,15 +81,19 @@ And we recommend that you generally use the option `-c` to enable the "text coun
 
 You may have noticed the uppercase letters before each novel in the output, which is a set of flags. Here is a brief introduction to them.
 
-- `N` means it is a novel. It should be displayed always.
+- `N` means it is a novel. `N/F` should be displayed one and only one of them.
+
+- `F` means it is a pixivFANBOX post. `N/F` should be displayed one and only one of them.
 
 - `S` means the novel is in a series. To disable series support, specify `-d` or `--no-series`.
 
-- `T` Timestamp available. Pixiv gives us "update time" before getting full content of novel and lazy mode is always on.
+- `T` Timestamp available. Pixiv gives us "update time" before getting full content of novel/post and lazy mode is always on (unless specified `-u` or `--disable-lazy-mode`).
 
-- `I` on Lazy mode, this novel have been ignored.
+- `I` on Lazy mode, this novel/post have been ignored.
 
-- `C` when specify `--with-cover-image`, and this novel has an uncommon (author customized) cover image.
+- `C` when specify `--with-cover-image`, and this novel/post has an uncommon (author customized) cover image.
+
+- `R` when it is a pixivFANBOX post and you can not read the post (such as not paid enough), indicates that you are restricted. Use `--no-ignore-fanbox-restricted` to stop working when meet a restricted post.
 
 ## Line ending
 
@@ -153,3 +159,5 @@ It is very sad that pixiv.net login interface is protected by reCAPTCHA. If you 
 - [ ] Allow user to specify skip and/or max number of novels/pages for specify bookmark/series/author
 
 - [x] Automatically detect the author rename and series rename.
+
+- [ ] (WIP) Add pixiv fanbox supporting.
