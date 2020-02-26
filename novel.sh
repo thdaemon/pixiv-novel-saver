@@ -447,6 +447,7 @@ pixiv_get_novel() {
 		json_get_integer "$tmp" userId      __meta[authorid]
 		json_get_string "$tmp"  description __meta[description]
 		json_get_string "$tmp"  coverUrl    __meta[_cover_image_uri]
+		json_get_integer "$tmp" xRestrict   __meta[xRestrict]
 		json_get_booleanstring "$tmp" isOriginal yes no __meta[original]
 
 		if json_has "$tmp" tags ; then
