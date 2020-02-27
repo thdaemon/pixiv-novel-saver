@@ -27,6 +27,7 @@ private=0
 novels=()
 serieses=()
 authors=()
+search=()
 fanbox=()
 fanbox_authors=()
 
@@ -163,6 +164,11 @@ json_array_get_item() {
 json_array_get_string_item() {
 	declare -n  __msg_="${3}"
 	json_get_string "${1}" "[${2}]" __msg_
+}
+
+urlencode() {
+	local data="`curl -s -o /dev/null -w %{url_effective} --get --data-urlencode "$1" ""`"
+	[ "$?" = '0' ] && echo "${data##/?}"
 }
 
 errquit() {
@@ -330,6 +336,25 @@ pixiv_list_novels_by_series() {
 	__pixiv_parsehdr "$tmp" pixiv_error || return 1
 
 	json_get_object "$tmp" body.seriesContents __novels
+	return 0
+}
+
+
+pixiv_list_novels_by_search() {
+	local str=`urlencode "$1"`
+	local page="$2"
+	declare -n  __novels="$3"
+	declare -n  __page_number="$4"
+	local smode=s_tag_only
+	local order=date_d
+
+	local tmp
+
+	tmp=`invoke_rest_api pixiv "ajax/search/novels/${str}?word=${str}&order=${order}&mode=all&p=${page}&s_mode=${smode}"`
+	__pixiv_parsehdr "$tmp" pixiv_error || return 1
+
+	json_get_object "$tmp" body.novel.data __novels
+	[ "$page" = "1" ] && json_get_integer "$tmp" body.novel.total __page_number
 	return 0
 }
 
@@ -558,6 +583,10 @@ SOURCE OPTIONS:
   -f, --save-fanbox-post <ID>
                            Save a fanbox post by its ID
                              Lazy mode: never (not supported)
+                             Can be specified multiple times
+  -F, --save-fanbox-user <ID>
+                           Save all posts by authors' ID
+                             Lazy mode: always (full supported, disable by -u)
                              Can be specified multiple times
 
 EXAMPLES:
@@ -1053,6 +1082,46 @@ save_series() {
 	done
 }
 
+save_search() {
+	local str="$1"
+	local page='1'
+
+	local works works_length total tmp
+
+	while true ; do
+		pixiv_list_novels_by_search "$str" "$page" works total || pixiv_errquit pixiv_list_novels_by_search
+		works_length=`json_array_n_items "$works"`
+
+		echo "[info] page: $page, total: $total, in this page: ${works_length}"
+
+		for i in `seq 0 $(( $works_length - 1 ))` ; do
+			json_array_get_item "$works" "$i" tmp
+
+			unset novel_meta
+			declare -A novel_meta
+
+			json_get_integer "$tmp" id        novel_meta[id]
+			json_get_string "$tmp"  title     novel_meta[title]
+			json_get_string "$tmp"  userName  novel_meta[author]
+			json_get_integer "$tmp" userId    novel_meta[authorid]
+			json_get_integer "$tmp" textCount novel_meta[text_count]
+
+			if json_has "$tmp" series ; then
+				json_get_integer "$tmp" series.id    novel_meta[series]
+				json_get_string "$tmp"  series.title novel_meta[series_name]
+			fi
+
+			tmp=''
+			[ -n "${novel_meta[text_count]}" ] && tmp="-tc${novel_meta[text_count]}"
+			download_novel "/by-search" novel_meta textcount "$tmp"
+		done
+
+		tmp=$(( $page * $NOVELS_PER_PAGE ))
+		[ "$tmp" -ge "$total" ] && break
+		page=$(( $page + 1 ))
+	done
+}
+
 [ -f pixiv-config ] && {
 	source pixiv-config
 	echo "[info] user specific configuration loaded"
@@ -1104,6 +1173,10 @@ while [ "$#" -gt 0 ]; do
 		;;
 	-A|--save-author)
 		authors[${#authors[@]}]="$2"
+		shift
+		;;
+	-S|--save-search)
+		append_to_array search "$2"
 		shift
 		;;
 	-f|--save-fanbox-post)
@@ -1183,6 +1256,14 @@ dbg && append_to_array EXTRA_CURL_OPTIONS -v
 	for i in "${serieses[@]}"; do
 		echo "[info] starting to save novels from series ID ${i}"
 		save_series "${i}"
+	done
+}
+
+[ "${#search[@]}" = '0' ] || {
+	echo "[info] saving novels by search..."
+	for i in "${search[@]}"; do
+		echo "[info] starting to save novels from search '${i}'"
+		save_search "${i}"
 	done
 }
 
