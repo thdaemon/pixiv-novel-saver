@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.24'
+SCRIPT_VERSION='0.2.25'
 
 NOVELS_PER_PAGE='24'
 DIR_PREFIX='pvnovels/'
@@ -565,16 +565,6 @@ EXAMPLES:
 EOF
 }
 
-## trick_meta
-#    __meta - pointer to a key-value pair
-#  after trick_meta, all '/' in __meta[title], __meta[series_name], etc will be replaced.
-trick_meta() {
-	declare -n __meta="$1"
-	[ -n "${__meta[title]}" ] && __meta[title]=`echo "${__meta[title]}" | tr '/' $_slash_replace_to`
-	[ -n "${__meta[author]}" ] && __meta[author]=`echo "${__meta[author]}" | tr '/' $_slash_replace_to`
-	[ -n "${__meta[series_name]}" ] && __meta[series_name]=`echo "${__meta[series_name]}" | tr '/' $_slash_replace_to`
-}
-
 ## write_file_atom
 #    filename - file name
 #    __kvpair - pointer to a key-value pair to write
@@ -713,9 +703,9 @@ prepare_filename() {
 
 	local series_dir
 
-	local author="-${__meta[author]}"
-	local series_name="-${__meta[series_name]}"
-	local title="-${__meta[title]}"
+	local author="-`echo "${__meta[author]}" | tr '/' $_slash_replace_to`"
+	local series_name="-`echo "${__meta[series_name]}" | tr '/' $_slash_replace_to`"
+	local title="-`echo "${__meta[title]}" | tr '/' $_slash_replace_to`"
 	if [ "$DIRNAME_ONLY_ID" = '1' ]; then
 		author=""
 		series_name=""
@@ -873,8 +863,6 @@ download_novel() {
 	local filename novel
 	declare -A nmeta
 
-	trick_meta meta
-
 	prepare_filename meta "$sdir" "$lazytag" flags filename
 
 	[ -n "$lazytag" -a -f "${filename}" ] && ignore=1
@@ -925,8 +913,6 @@ save_id() {
 	declare -A meta
 
 	$core_api_func "$id" content meta || pixiv_errquit $core_api_func
-
-	trick_meta meta
 
 	prepare_filename meta "$path_prefix" '' flags filename
 
