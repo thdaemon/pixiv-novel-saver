@@ -5,6 +5,7 @@ DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 SCRIPT_VERSION='0.2.25'
 
 NOVELS_PER_PAGE='24'
+FANBOX_POSTS_PER_PAGE='10'
 DIR_PREFIX='pvnovels/'
 COOKIE=""
 USER_ID=""
@@ -33,7 +34,7 @@ post_command=''
 post_command_ignored=''
 
 declare -A useragent
-useragent[desktop]="Mozilla/5.0 (X11; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0"
+useragent[desktop]="Mozilla/5.0 (X11; Linux x86_64; rv:74.0) Gecko/20100101 Firefox/74.0"
 useragent[mobile]="Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox/68.0"
 
 declare -A API_GATEWAY_HOST
@@ -343,7 +344,7 @@ pixivfanbox_list_post() {
 	case "$1" in
 	first)
 		scope=pixivFANBOX
-		api="api/post.listCreator?userId=${2}&limit=10"
+		api="api/post.listCreator?userId=${2}&limit=${FANBOX_POSTS_PER_PAGE}"
 		;;
 	next)
 		scope=raw
@@ -516,8 +517,10 @@ MISC OPTIONS:
   -d, --no-series          Save novel to author's directory, no series subdir
   -o, --output <DIR>       default: 'pvnovels/'
   -E, --ignore-empty       Do not stop while meeting a empty content
-  -w, --window-size <NPP>  default: 24, how many items per page
-                             (Not available in --save-author and --save-novel)
+  -w, --window-size <NPP>  How many novels/fanbox_post per page request
+                             default 24 for novels and 10 for fanbox post
+                             (not available in --save-author, --save-novel
+                             and --save-fanbox-post)
   -u, --disable-lazy-mode  Disable all lazy modes unconditionally
   -R, --no-renaming-detect Do not detect author/series renaming
   --path-id-only           Do not append name to dir path, IDs only
@@ -1082,6 +1085,7 @@ while [ "$#" -gt 0 ]; do
 		;;
 	-w|--window-size)
 		NOVELS_PER_PAGE="$2"
+		FANBOX_POSTS_PER_PAGE="$2"
 		shift
 		;;
 	-m|--save-my-bookmarks)
