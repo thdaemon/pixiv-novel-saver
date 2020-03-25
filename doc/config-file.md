@@ -88,7 +88,7 @@ Command-line option|Configure file equivalent
 `-d`, `--no-series`|`NO_SERIES=1`
 `-o <DIR>`, `--output <DIR>`|`DIR_PREFIX="<DIR>"`
 `-E`, `--ignore-empty`|`ABORT_WHILE_EMPTY_CONTENT=0`
-`-w <NPP>`, `--window-size <NPP>`|`NOVELS_PER_PAGE=<NPP>`
+`-w <NPP>`, `--window-size <NPP>`|`NOVELS_PER_PAGE=<NPP>; FANBOX_POSTS_PER_PAGE=<NPP>` (Or you can specify them individually)
 `-u`, `--disable-lazy-mode`|`NO_LAZY_UNCON=1`
 `-R`, `--no-renaming-detect`|`RENAMING_DETECT=0`
 `--path-id-only`|`RENAMING_DETECT=0; DIRNAME_ONLY_ID=1` (You must specify both config, or you may meet problems)

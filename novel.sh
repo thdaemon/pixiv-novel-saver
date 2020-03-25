@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.25'
+SCRIPT_VERSION='0.2.26'
 
 NOVELS_PER_PAGE='24'
 FANBOX_POSTS_PER_PAGE='10'
@@ -362,62 +362,76 @@ pixivfanbox_list_post() {
 
 	json_get_object "$tmp" body.items items
 	json_get_string "$tmp" body.nextUrl __next_url
+
+	return 0
+}
+## pixivfanbox_parse_post_meta
+#    data - json data
+#    __content_ - a pointer to recv content
+#    __meta_ - a pointer to recv some post infomation
+pixivfanbox_parse_post() {
+	local data="$1"
+	declare -n __content_="$2"
+	declare -n __meta_="$3"
+	local tagmeta tags ntags tag
+
+	json_get_string "$tmp" type __meta_[type]
+
+	case "${__meta_[type]}" in
+	text)
+		json_get_string "$tmp" body.text __content_
+		;;
+	article)
+		json_get_object "$tmp" body __content_
+		;;
+	*)
+		pixiv_error="Unsupported post type '${__meta_[type]}'"
+		return 2
+		;;
+	esac
+
+	__meta_[pixivFANBOX]=yes
+
+	json_get_integer "$data" id                __meta_[id]
+	json_get_string "$data"  title             __meta_[title]
+	json_get_integer "$data" user.userId       __meta_[authorid]
+	json_get_string "$data"  user.name         __meta_[author]
+	json_get_string "$data"  coverImageUrl     __meta_[_cover_image_uri]
+	json_get_string "$data"  publishedDatetime __meta_[publishedDatetime]
+	json_get_string "$data"  updatedDatetime   __meta_[updatedDatetime]
+	json_get_string "$data"  restrictedFor     __meta_[restrictedFor]
+
+	if json_has "$data" tags ; then
+		json_get_object "$data" tags tags
+		ntags=`json_array_n_items "$tags"`
+		for i in `seq 0 $(( ${ntags} - 1 ))`; do
+			json_array_get_string_item "$tags" "$i" tag
+			tagmeta="${tagmeta}${tag}, "
+		done
+
+		__meta_[tags]="${tagmeta%, }"
+	fi
+
+	return 0
 }
 
 ## pixivfanbox_get_post
 #    id - the ID of the post
 #    __data - a pointer to recv post content
-#    __meta (optional) - a pointer to recv some post infomation
+#    __meta - a pointer to recv some post infomation
 pixivfanbox_get_post() {
 	local id="$1"
 	declare -n __data="$2"
 	declare -n __meta="$3"
-	local tmp tags tagmeta ntags tag
+	local tmp type
 
 	tmp=`invoke_rest_api pixivFANBOX "api/post.info?postId=$id"`
 	__pixivfanbox_parsehdr "$tmp" pixiv_error || return 1
 
 	json_get_object "$tmp" body tmp
-	json_get_string "$tmp" type __meta[type]
 
-	case "${__meta[type]}" in
-	text)
-		json_get_string "$tmp" body.text __data
-		;;
-	article)
-		json_get_object "$tmp" body __data
-		;;
-	*)
-		pixiv_error="Unsupported post type ${__meta[type]}'"
-		return 2
-		;;
-	esac
-
-	if [ -n "$3" ]; then
-		__meta[pixivFANBOX]=yes
-
-		json_get_integer "$tmp" id                __meta[id]
-		json_get_string "$tmp"  title             __meta[title]
-		json_get_integer "$tmp" user.userId       __meta[authorid]
-		json_get_string "$tmp"  user.name         __meta[author]
-		json_get_string "$tmp"  coverImageUrl     __meta[_cover_image_uri]
-		json_get_string "$tmp"  publishedDatetime __meta[publishedDatetime]
-		json_get_string "$tmp"  updatedDatetime   __meta[updatedDatetime]
-		json_get_string "$tmp"  restrictedFor     __meta[restrictedFor]
-
-		if json_has "$tmp" tags ; then
-			json_get_object "$tmp" tags tags
-			ntags=`json_array_n_items "$tags"`
-			for i in `seq 0 $(( ${ntags} - 1 ))`; do
-				json_array_get_string_item "$tags" "$i" tag
-				tagmeta="${tagmeta}${tag}, "
-			done
-
-			__meta[tags]="${tagmeta%, }"
-		fi
-	fi
-
-	return 0
+	pixivfanbox_parse_post "$tmp" __data __meta
+	return $?
 }
 
 ## pixiv_get_novel
@@ -557,7 +571,11 @@ SOURCE OPTIONS:
                              Can be specified multiple times
   -f, --save-fanbox-post <ID>
                            Save a fanbox post by its ID
-                             Lazy mode: never (not supported)
+			     Lazy mode: embed (disable by -u)
+                             Can be specified multiple times
+  -F, --save-fanbox-user <ID>
+                           Save all posts by authors' ID
+                             Lazy mode: embed (disable by -u)
                              Can be specified multiple times
 
 EXAMPLES:
@@ -1005,6 +1023,35 @@ save_author() {
 	done
 }
 
+save_fanbox_author() {
+	local id="$1"
+	local page_cur='1'
+	local items next_url n tmp flags filename content
+
+	pixivfanbox_list_post first "$id" items next_url || pixiv_errquit pixivfanbox_list_post
+	while true ; do
+		n=`json_array_n_items "$items"`
+
+		echo "[info] in this page: ${n}"
+		for i in `seq 0 $(( $n - 1 ))` ; do
+			json_array_get_item "$items" "$i" tmp
+
+			unset meta
+			declare -A meta
+			flags='F'
+
+			pixivfanbox_parse_post "$tmp" content meta || pixiv_errquit pixivfanbox_parse_post
+
+			prepare_filename meta "/by-fanbox-author" '' flags filename
+
+			post_fanbox_data_recv meta "$content" "$filename" flags
+		done
+
+		[ -z "$next_url" ] && break
+		pixivfanbox_list_post next "$next_url" items next_url || pixiv_errquit pixivfanbox_list_post
+	done
+}
+
 save_series() {
 	local id="$1"
 	local page='0'
@@ -1191,5 +1238,13 @@ dbg && append_to_array EXTRA_CURL_OPTIONS -v
 	echo "[info] saving posts by fanbox post id..."
 	for i in "${fanbox[@]}"; do
 		save_id "$i" fanbox_post
+	done
+}
+
+[ "${#fanbox_authors[@]}" = '0' ] || {
+	echo "[warning] pixivFANBOX support is early experimental, there are many things not completed. If you meet a problem, please submit an issue"
+	echo "[info] saving posts by fanbox user..."
+	for i in "${fanbox_authors[@]}"; do
+		save_fanbox_author "$i"
 	done
 }
