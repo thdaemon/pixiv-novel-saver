@@ -74,10 +74,22 @@ Same as `-A, --save-author <ID>`. Save all public novels published by an author
 append_to_array authors <ID>
 ```
 
+Same as `-b, --save-user-bookmarks <ID>`. Save all novels from public bookmarks by user ID
+
+```
+append_to_array user_bookmarks <ID>
+```
+
 Same as `-f, --save-fanbox-post <ID>`. Save a fanbox post by its ID
 
 ```
 append_to_array fanbox <ID>
+```
+
+Same as `-F, --save-fanbox-user`. Save all posts by authors' ID
+
+```
+append_to_array fanbox_authors <ID>
 ```
 
 ## Misc options

@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.26'
+SCRIPT_VERSION='0.2.27'
 
 NOVELS_PER_PAGE='24'
 FANBOX_POSTS_PER_PAGE='10'
@@ -24,6 +24,7 @@ WITH_INLINE_FILES=0
 
 bookmarks=0
 private=0
+user_bookmarks=()
 novels=()
 serieses=()
 authors=()
@@ -560,6 +561,10 @@ SOURCE OPTIONS:
                              Lazy mode: text count (enable it by -c)
   -p, --save-my-private    Save all my private bookmarked novels
                              Lazy mode: text count (enable it by -c)
+  -b, --save-user-bookmarks <ID>
+                           Save all novels from public bookmarks by user ID
+                             Lazy mode: text count (enable it by -c)
+                             Can be specified multiple times
   -a, --save-novel <ID>    Save a novel by its ID
                              Lazy mode: never (not supported)
                              Can be specified multiple times
@@ -580,9 +585,10 @@ SOURCE OPTIONS:
 
 EXAMPLES:
 	$1 -c -m
-	$1 -c -m -d
 	$1 -c -m -a ID -s ID -s ID -s ID -E
 	$1 -c -a ID -A ID -A ID -o some_dir
+	$1 -c -m -p -e 'unix2dox -q' --with-cover-image
+	$1 --with-inline-images --with-inline-files -F ID
 EOF
 }
 
@@ -940,18 +946,19 @@ save_id() {
 	$post_func meta "$content" "$filename" flags
 }
 
-save_my_bookmarks() {
+save_bookmarks() {
 	local page='0'
 	local total=''
 	local suffix=''
-	local rest="$1"
+	local user="$1"
+	local rest="$2"
 
 	local works works_length tmp
 
 	[ "$rest" = 'show' ] || suffix="-$rest"
 
 	while true ; do
-		pixiv_list_novels_by_bookmarks "${USER_ID}" "$page" "$rest" works total || pixiv_errquit pixiv_list_novels_by_bookmarks
+		pixiv_list_novels_by_bookmarks "$user" "$page" "$rest" works total || pixiv_errquit pixiv_list_novels_by_bookmarks
 		works_length=`json_array_n_items "$works"`
 
 		echo "[info] total: ${total}, processing page: ${page}, in this page: ${works_length}"
@@ -975,7 +982,7 @@ save_my_bookmarks() {
 
 			tmp=''
 			[ -n "${novel_meta[text_count]}" ] && tmp="-tc${novel_meta[text_count]}"
-			download_novel "/bookmarks/${USER_ID}${suffix}" novel_meta textcount "${tmp}"
+			download_novel "/bookmarks/${user}${suffix}" novel_meta textcount "${tmp}"
 		done
 
 		page=$(( $page + 1 ))
@@ -1141,16 +1148,20 @@ while [ "$#" -gt 0 ]; do
 	-p|--save-my-private)
 		private=1
 		;;
+	-b|--save-user-bookmarks)
+		append_to_array user_bookmarks "$2"
+		shift
+		;;
 	-a|--save-novel)
-		novels[${#novels[@]}]="$2"
+		append_to_array novels "$2"
 		shift
 		;;
 	-s|--save-series)
-		serieses[${#serieses[@]}]="$2"
+		append_to_array serieses "$2"
 		shift
 		;;
 	-A|--save-author)
-		authors[${#authors[@]}]="$2"
+		append_to_array authors "$2"
 		shift
 		;;
 	-f|--save-fanbox-post)
@@ -1202,12 +1213,20 @@ dbg && append_to_array EXTRA_CURL_OPTIONS -v
 
 [ "$bookmarks" = '1' ] && {
 	echo "[info] saving my bookmarked novels..."
-	save_my_bookmarks show
+	save_bookmarks "${USER_ID}" show
 }
 
 [ "$private" = '1' ] && {
 	echo "[info] saving my private bookmarked novels..."
-	save_my_bookmarks hide
+	save_bookmarks "${USER_ID}" hide
+}
+
+[ "${#user_bookmarks[@]}" = '0' ] || {
+	echo "[info] saving novels which are bookmarked by users..."
+	for i in "${user_bookmarks[@]}"; do
+		echo "[info] starting to save novels which are bookmarked by ${i}..."
+		save_bookmarks "${i}" show
+	done
 }
 
 [ "${#novels[@]}" = '0' ] || {
