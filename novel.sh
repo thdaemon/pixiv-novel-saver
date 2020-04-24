@@ -35,7 +35,7 @@ post_command=''
 post_command_ignored=''
 
 declare -A useragent
-useragent[desktop]="Mozilla/5.0 (X11; Linux x86_64; rv:74.0) Gecko/20100101 Firefox/74.0"
+useragent[desktop]="Mozilla/5.0 (X11; Linux x86_64; rv:75.0) Gecko/20100101 Firefox/75.0"
 useragent[mobile]="Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox/68.0"
 
 declare -A API_GATEWAY_HOST
@@ -382,7 +382,7 @@ pixivfanbox_parse_post() {
 	text)
 		json_get_string "$tmp" body.text __content_
 		;;
-	article)
+	article|image)
 		json_get_object "$tmp" body __content_
 		;;
 	*)
@@ -822,9 +822,6 @@ post_fanbox_data_recv() {
 		[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
 	fi
 
-	[ "$WITH_COVER_IMAGE" = '1' -a -n "${__meta[_cover_image_uri]}" ] && \
-	       download_cover_image "${__meta[_cover_image_uri]}" "${filename}.coverimage" && __flags="${__flags}C"
-
 	case "${__meta[type]}" in
 	text)
 		write_file_atom "$filename" __meta "$data"
@@ -865,10 +862,25 @@ post_fanbox_data_recv() {
 		[ "$FANBOX_SAVE_RAW_DATA" = '1' ] && write_file_atom "${filename}.raw" __meta "$data"
 		write_file_atom "$filename" __meta "$content"
 		;;
+	image)
+		[ "$WITH_INLINE_IMAGES" = '1' ] || return
+		json_get_string "$data" text content
+		json_get_object "$data" images blocks
+		n=`json_array_n_items "$blocks"`
+		for i in `seq 0 $(( ${n} - 1 ))`; do
+			json_array_get_item "$blocks" "$i" item
+			json_get_string "$item" id item_text
+			download_fanbox_inline_stuff image "$item_text" "$item" "$prefix" "${__meta[id]}"
+		done
+		write_file_atom "$filename" __meta "$content"
+		;;
 	*)
 		echo "[warning] post_fanbox_data_recv: ${__meta[type]}: stub"
 		;;
 	esac
+
+	[ "$WITH_COVER_IMAGE" = '1' -a -n "${__meta[_cover_image_uri]}" ] && \
+	       download_cover_image "${__meta[_cover_image_uri]}" "${filename}.coverimage" && __flags="${__flags}C"
 
 	print_complete_line "$__flags" __meta
 }
