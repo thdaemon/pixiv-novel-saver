@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.28'
+SCRIPT_VERSION='0.2.29'
 
 NOVELS_PER_PAGE='24'
 FANBOX_POSTS_PER_PAGE='10'
@@ -116,6 +116,10 @@ invoke_curl_simple_download() {
 	shift 3
 
 	invoke_curl -uri "$uri" -useragent "${useragent["${2:-desktop}"]}" -accept "$accept" -referer "https://www.pixiv.net" -cookie "${COOKIE}" "$@"
+}
+
+date_string_to_timestamp() {
+	date '+%s' -d "$1"
 }
 
 json_has() {
@@ -401,6 +405,8 @@ pixivfanbox_parse_post() {
 	json_get_string "$data"  publishedDatetime __meta_[publishedDatetime]
 	json_get_string "$data"  updatedDatetime   __meta_[updatedDatetime]
 	json_get_string "$data"  restrictedFor     __meta_[restrictedFor]
+
+	__meta_[_lazy_tag]="-ts`date_string_to_timestamp "${__meta_[updatedDatetime]}"`"
 
 	if json_has "$data" tags ; then
 		json_get_object "$data" tags tags
@@ -822,6 +828,12 @@ post_fanbox_data_recv() {
 		[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
 	fi
 
+	if [ "$NO_LAZY_UNCON" = '0' -a -f "$filename" ]; then
+		__flags="${__flags}I"
+		print_complete_line "$__flags" __meta
+		return 0
+	fi
+
 	type="${__meta[type]}"
 
 	case "$type" in
@@ -958,7 +970,7 @@ save_id() {
 
 	$core_api_func "$id" content meta || pixiv_errquit $core_api_func
 
-	prepare_filename meta "$path_prefix" '' flags filename
+	prepare_filename meta "$path_prefix" "${meta[_lazy_tag]}" flags filename
 
 	$post_func meta "$content" "$filename" flags
 }
@@ -1066,7 +1078,7 @@ save_fanbox_author() {
 
 			pixivfanbox_parse_post "$tmp" content meta || pixiv_errquit pixivfanbox_parse_post
 
-			prepare_filename meta "/by-fanbox-author" '' flags filename
+			prepare_filename meta "/by-fanbox-author" "${meta[_lazy_tag]}" flags filename
 
 			post_fanbox_data_recv meta "$content" "$filename" flags
 		done

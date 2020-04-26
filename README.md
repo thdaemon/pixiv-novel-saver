@@ -76,7 +76,7 @@ Mode|Source|Description
 always (full supported)|`-s, --save-series`|For this source, Pixiv gives us "update time" before getting full content of novel. So lazy mode is always on. Novels will be updated only when the author updates their novel. It will avoid repeated saves after the second time. It's not dangerous.
 text count|`-m, --save-my-bookmarks`, `-p, --save-my-private`, `-b, --save-user-bookmarks` and `-A, --save-author`|For this source, Pixiv does NOT give us "update time" before getting full content of novel. However, there are still some ways to allow roughly guessing whether the novel has been updated, such as the number of words, but this is not 100% accurate. `-c` or `--lazy-text-count` option enables "text count" Lazy Mode. It's a little dangerous.
 never (not supported)|`-a, --save-novel`|For these sources, lazy mode is impossible.
-embed|`-F, --save-fanbox-user`, `-f, --save-fanbox-post`|For these sources, Pixiv gives us "update time" and full content when list posts of a user. It will avoid repeated saves the embed contents (such as images, embed files) [NOT FULLY IMPLEMENT CURRENTLY]
+embed|`-F, --save-fanbox-user`, `-f, --save-fanbox-post`|For these sources, Pixiv gives us "update time" and full content when list posts of a user. It will avoid repeated saves the embed contents (such as images, embed files)
 
 To disable all lazy modes unconditionally, you can use specify `-u` or `--disable-lazy-mode` option. But usually not needed.
 
