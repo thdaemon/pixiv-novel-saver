@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.27'
+SCRIPT_VERSION='0.2.28'
 
 NOVELS_PER_PAGE='24'
 FANBOX_POSTS_PER_PAGE='10'
@@ -382,7 +382,7 @@ pixivfanbox_parse_post() {
 	text)
 		json_get_string "$tmp" body.text __content_
 		;;
-	article|image)
+	article|image|file)
 		json_get_object "$tmp" body __content_
 		;;
 	*)
@@ -805,7 +805,7 @@ post_fanbox_data_recv() {
 
 	local prefix=`dirname -- "$filename"`
 
-	local blocks n item item_text item_type content tmp
+	local type blocks n item item_text item_type content tmp
 
 	if [ -n "${__meta[restrictedFor]}" ]; then
 		__flags="${__flags}R"
@@ -822,7 +822,9 @@ post_fanbox_data_recv() {
 		[ "$ABORT_WHILE_EMPTY_CONTENT" = '1' ] && exit 1
 	fi
 
-	case "${__meta[type]}" in
+	type="${__meta[type]}"
+
+	case "$type" in
 	text)
 		write_file_atom "$filename" __meta "$data"
 		;;
@@ -862,20 +864,23 @@ post_fanbox_data_recv() {
 		[ "$FANBOX_SAVE_RAW_DATA" = '1' ] && write_file_atom "${filename}.raw" __meta "$data"
 		write_file_atom "$filename" __meta "$content"
 		;;
-	image)
-		[ "$WITH_INLINE_IMAGES" = '1' ] || return
+	image|file)
+		case "$type" in
+		image) [ "$WITH_INLINE_IMAGES" = '1' ] || return; tmp="images" ;;
+		file) [ "$WITH_INLINE_FILES" = '1' ] || return; tmp="files" ;;
+		esac
 		json_get_string "$data" text content
-		json_get_object "$data" images blocks
+		json_get_object "$data" "${tmp}" blocks
 		n=`json_array_n_items "$blocks"`
 		for i in `seq 0 $(( ${n} - 1 ))`; do
 			json_array_get_item "$blocks" "$i" item
 			json_get_string "$item" id item_text
-			download_fanbox_inline_stuff image "$item_text" "$item" "$prefix" "${__meta[id]}"
+			download_fanbox_inline_stuff "$type" "$item_text" "$item" "$prefix" "${__meta[id]}"
 		done
 		write_file_atom "$filename" __meta "$content"
 		;;
 	*)
-		echo "[warning] post_fanbox_data_recv: ${__meta[type]}: stub"
+		echo "[warning] post_fanbox_data_recv: $type: stub"
 		;;
 	esac
 
