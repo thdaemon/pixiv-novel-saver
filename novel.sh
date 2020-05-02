@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.29'
+SCRIPT_VERSION='0.2.30'
 
 NOVELS_PER_PAGE='24'
 FANBOX_POSTS_PER_PAGE='10'
@@ -41,7 +41,11 @@ useragent[mobile]="Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox
 declare -A API_GATEWAY_HOST
 API_GATEWAY_HOST[raw]=""
 API_GATEWAY_HOST[pixiv]="https://www.pixiv.net/"
-API_GATEWAY_HOST[pixivFANBOX]="https://fanbox.pixiv.net/"
+API_GATEWAY_HOST[pixivFANBOX]="https://api.fanbox.cc/"
+#API_GATEWAY_HOST[pixivFANBOX]="https://fanbox.pixiv.net/"
+API_GATEWAY_REFERER[raw]="https://www.pixiv.net"
+API_GATEWAY_REFERER[pixiv]="https://www.pixiv.net"
+API_GATEWAY_REFERER[pixivFANBOX]="https://www.fanbox.cc"
 
 EXTRA_CURL_OPTIONS=()
 
@@ -95,7 +99,7 @@ invoke_rest_api() {
 	dbg && printdbg "> $1 $2"
 
 	declare -a extra_opts
-	local referer="https://www.pixiv.net"
+	local referer="${API_GATEWAY_REFERER[${1}]}"
 	local uri="${API_GATEWAY_HOST[${1}]}$2"
 	local ua="${useragent["${3:-desktop}"]}"
 
@@ -345,15 +349,22 @@ pixiv_list_novels_by_series() {
 #    __next_url - a pointer to recv URL for next page, blank means ending
 pixivfanbox_list_post() {
 	local scope api
+	local idtype=creatorId
+	local target="$2"
+
+	if [[ "$target" =~ ^pixiv: ]]; then
+		target="${target#pixiv:}"
+		idtype=userId
+	fi
 
 	case "$1" in
 	first)
 		scope=pixivFANBOX
-		api="api/post.listCreator?userId=${2}&limit=${FANBOX_POSTS_PER_PAGE}"
+		api="post.listCreator?${idtype}=${target}&limit=${FANBOX_POSTS_PER_PAGE}"
 		;;
 	next)
 		scope=raw
-		api="${2}"
+		api="${target}"
 		;;
 	esac
 
@@ -401,6 +412,7 @@ pixivfanbox_parse_post() {
 	json_get_string "$data"  title             __meta_[title]
 	json_get_integer "$data" user.userId       __meta_[authorid]
 	json_get_string "$data"  user.name         __meta_[author]
+	json_get_string "$data"  creatorId         __meta_[creatorId]
 	json_get_string "$data"  coverImageUrl     __meta_[_cover_image_uri]
 	json_get_string "$data"  publishedDatetime __meta_[publishedDatetime]
 	json_get_string "$data"  updatedDatetime   __meta_[updatedDatetime]
@@ -432,7 +444,7 @@ pixivfanbox_get_post() {
 	declare -n __meta="$3"
 	local tmp type
 
-	tmp=`invoke_rest_api pixivFANBOX "api/post.info?postId=$id"`
+	tmp=`invoke_rest_api pixivFANBOX "post.info?postId=$id"`
 	__pixivfanbox_parsehdr "$tmp" pixiv_error || return 1
 
 	json_get_object "$tmp" body tmp
@@ -511,6 +523,11 @@ pixiv_get_illust_url_original() {
 	return 0
 }
 
+strip_filename_component() {
+	declare -n __val="$1"
+	__val="${__val//\//${_slash_replace_to}}"
+}
+
 usage() {
 	cat <<EOF
 Pixiv novel saver ${SCRIPT_VERSION}
@@ -580,11 +597,12 @@ SOURCE OPTIONS:
   -A, --save-author <ID>   Save all public novels published by an author
                              Lazy mode: text count (enable it by -c)
                              Can be specified multiple times
-  -f, --save-fanbox-post <ID>
+  -f, --save-fanbox-post <post ID>
                            Save a fanbox post by its ID
 			     Lazy mode: embed (disable by -u)
                              Can be specified multiple times
-  -F, --save-fanbox-user <ID>
+  -F, --save-fanbox-user pixiv:<pixiv ID>
+  -F, --save-fanbox-user <fanbox creator ID>
                            Save all posts by authors' ID
                              Lazy mode: embed (disable by -u)
                              Can be specified multiple times
@@ -734,11 +752,15 @@ prepare_filename() {
 	declare -n __flags="$4"
 	declare -n __filename="$5"
 
-	local series_dir
+	local series_dir author
 
-	local author="-`echo "${__meta[author]}" | tr '/' $_slash_replace_to`"
-	local series_name="-`echo "${__meta[series_name]}" | tr '/' $_slash_replace_to`"
-	local title="-`echo "${__meta[title]}" | tr '/' $_slash_replace_to`"
+	[ -n "${__meta[creatorId]}" ] && author="-${__meta[creatorId]}-${__meta[author]}" || author="-${__meta[author]}"
+	local series_name="-${__meta[series_name]}"
+	local title="-${__meta[title]}"
+	strip_filename_component author
+	strip_filename_component series_name
+	strip_filename_component title
+
 	if [ "$DIRNAME_ONLY_ID" = '1' ]; then
 		author=""
 		series_name=""
@@ -766,7 +788,9 @@ prepare_filename() {
 print_complete_line() {
 	local flags="$1"
 	declare -n __kv="$2"
-	printf "=> %-${_max_flag_len}s %-${_max_id_len}s '%s' %s\n" "$flags" "${__kv[id]}" "${__kv[title]}" "${__kv[author]}"
+	local author="${__kv[author]}"
+	[ -n "${__kv[creatorId]}" ] && author="${__kv[creatorId]} ($author)"
+	printf "=> %-${_max_flag_len}s %-${_max_id_len}s '%s' %s\n" "$flags" "${__kv[id]}" "${__kv[title]}" "$author"
 }
 
 ## post_novel_content_recv

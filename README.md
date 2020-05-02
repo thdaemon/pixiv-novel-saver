@@ -31,7 +31,13 @@ COOKIE="PHPSESSID=XXXXXXXX_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX;"
 USER_ID="<Your user id>"
 ```
 
-> If you are using Mozilla Firefox, open https://www.pixiv.net in browser, click `F12`, and you can find `PHPSESSID` in `Storage` -> `Cookie`. Click your avatar in web page, and then you can find your user id in the end of the URL.
+If you are downloading pixivFANBOX posts, I recommend setting FANBOXSESSID at the same time, like: (Although at present, it seems that it is not necessary to download posts not by current user)
+
+```
+COOKIE="PHPSESSID=XXXXXXXX_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX; FANBOXSESSID=XXXXXXXX_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX;"
+```
+
+> If you are using Mozilla Firefox, open https://www.pixiv.net in browser, click `F12`, and you can find `PHPSESSID` in `Storage` -> `Cookie` (Same steps for www.fanbox.cc). Click your avatar in web page, and then you can find your user id in the end of the URL.
 
 Run the script
 
@@ -56,6 +62,16 @@ To save novels from another user's public bookmarks, you can use `-b <ID>` or `-
 To save pixivFANBOX post by its ID, you can use `-f <ID>` or `--save-fanbox-post <ID>` (Can be specified multiple times) (experimental supporting with semi-stubs)
 
 To save pixivFANBOX posts by users' ID, you can use `-F <ID>` or `--save-fanbox-user <ID>` (Can be specified multiple times) (experimental supporting with semi-stubs)
+
+> ID may be "fanbox creator ID" or "Pixiv ID URI (`pixiv:{PIXIV_ID}`)"
+>
+> fanbox creator ID: `--save-fanbox-user abcdefg`
+>
+> Pixiv ID URI: `--save-fanbox-user pixiv:1234567`
+>
+> For pixiv-novel-saver version <= 0.2.29, it is pixiv ID only, like `--save-fanbox-user 1234567`
+>
+> currently fanbox officially uses the creator ID instead of the pixiv ID which is used in old API, so I recommend that you also use the creator ID.
 
 Some other options are useful, such as `-d, --no-series`, `-E, --ignore-empty`, `-w, --window-size`, `--with-cover-image`, `-R, --no-renaming-detect`, `--with-inline-images`, `--with-inline-files`, `--no-ignore-fanbox-restricted`, etc.
 
