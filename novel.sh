@@ -2,7 +2,7 @@
 
 DEBUG="${PIXIV_NOVEL_SAVER_DEBUG:-0}"
 
-SCRIPT_VERSION='0.2.30'
+SCRIPT_VERSION='0.2.31'
 
 NOVELS_PER_PAGE='24'
 FANBOX_POSTS_PER_PAGE='10'
@@ -43,6 +43,7 @@ API_GATEWAY_HOST[raw]=""
 API_GATEWAY_HOST[pixiv]="https://www.pixiv.net/"
 API_GATEWAY_HOST[pixivFANBOX]="https://api.fanbox.cc/"
 #API_GATEWAY_HOST[pixivFANBOX]="https://fanbox.pixiv.net/"
+declare -A API_GATEWAY_REFERER
 API_GATEWAY_REFERER[raw]="https://www.pixiv.net"
 API_GATEWAY_REFERER[pixiv]="https://www.pixiv.net"
 API_GATEWAY_REFERER[pixivFANBOX]="https://www.fanbox.cc"
