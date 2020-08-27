@@ -35,7 +35,7 @@ post_command=''
 post_command_ignored=''
 
 declare -A useragent
-useragent[desktop]="Mozilla/5.0 (X11; Linux x86_64; rv:75.0) Gecko/20100101 Firefox/75.0"
+useragent[desktop]="Mozilla/5.0 (X11; Linux x86_64; rv:80.0) Gecko/20100101 Firefox/80.0"
 useragent[mobile]="Mozilla/5.0 (Android 9.0; Mobile; rv:68.0) Gecko/68.0 Firefox/68.0"
 
 declare -A API_GATEWAY_HOST
