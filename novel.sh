@@ -512,15 +512,17 @@ pixiv_get_novel() {
 #    id - the id of the illust
 #    __url - a pointer to recv url string
 pixiv_get_illust_url_original() {
-	local id="$1"
+	local id=(${1//-/ })
+	local index=${id[1]:-1}
+	index=$(( $index - 1 ))
 	declare -n  __url="$2"
 
 	local tmp
 
-	tmp=`invoke_rest_api pixiv "ajax/illust/${id}/pages"`
+	tmp=`invoke_rest_api pixiv "ajax/illust/${id[0]}/pages"`
 	__pixiv_parsehdr "$tmp" pixiv_error || return 1
 
-	json_get_string "$tmp" body[0].urls.original __url
+	json_get_string "$tmp" body[${index}].urls.original __url
 	return 0
 }
 
@@ -667,7 +669,7 @@ download_inline_images() {
 	local url=''
 	local stat='done'
 
-	for i in `grep -o -E '\[pixivimage:[0-9]+\]' <<< "$1"`; do
+	for i in `grep -o -E '\[(pixiv|uploaded)image:[0-9-]+\]' <<< "$1"`; do
 		illust=`echo "$i" | cut -d : -f 2 | cut -d ] -f 1`
 		pixiv_get_illust_url_original "$illust" url || echo "[warning] pixiv_get_illust_url_original: $pixiv_error"
 		if [ -z "$url" ]; then
