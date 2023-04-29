@@ -1031,6 +1031,11 @@ save_bookmarks() {
 			json_get_integer "$tmp" userId    novel_meta[authorid]
 			json_get_integer "$tmp" textCount novel_meta[text_count]
 
+			if [ "${novel_meta[authorid]}" = "0" ];then
+				echo "[warning] novel ${novel_meta[id]} has been removed, ignoring..."
+				continue
+			fi
+
 			if json_has "$tmp" seriesId ; then
 				json_get_integer "$tmp" seriesId    novel_meta[series]
 				json_get_string "$tmp"  seriesTitle novel_meta[series_name]
