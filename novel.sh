@@ -339,7 +339,7 @@ pixiv_list_novels_by_series() {
 	tmp=`invoke_rest_api pixiv "ajax/novel/series_content/${seriesid}?limit=${NOVELS_PER_PAGE}&last_order=${offset}&order_by=asc"`
 	__pixiv_parsehdr "$tmp" pixiv_error || return 1
 
-	json_get_object "$tmp" body.seriesContents __novels
+	json_get_object "$tmp" body.page.seriesContents __novels
 	return 0
 }
 
