@@ -50,6 +50,8 @@ API_GATEWAY_REFERER[pixivFANBOX]="https://www.fanbox.cc"
 
 EXTRA_CURL_OPTIONS=()
 
+#FILENAME_MAX_LEN=80
+
 _slash_replace_to=_
 _max_flag_len=5
 _max_id_len=9
@@ -782,7 +784,19 @@ prepare_filename() {
 		fi
 	fi
 
-	__filename="${DIR_PREFIX}${sdir}/${__meta[authorid]}${author}${series_dir}/${__meta[id]}${title}${lazytag}.txt"
+	local id="${__meta[id]}"
+	local fn="${id}${title}${lazytag}.txt"
+
+	if (( FILENAME_MAX_LEN && ${#fn} > FILENAME_MAX_LEN )); then
+		local fixed_len=$(( ${#id} + ${#lazytag} + 7 ))
+		local max_title_len=$(( FILENAME_MAX_LEN - fixed_len ))
+
+		local trimmed_title="${title:0:max_title_len}"
+
+		fn="${id}${trimmed_title}...${lazytag}.txt"
+	fi
+
+	__filename="${DIR_PREFIX}${sdir}/${__meta[authorid]}${author}${series_dir}/${fn}"
 }
 
 ## print_complete_line
@@ -1172,6 +1186,11 @@ save_series() {
 	source pixiv-config
 	echo "[info] user specific configuration loaded"
 }
+
+if (( ! FILENAME_MAX_LEN )); then
+	echo "[notice] To workaround file name size limit of filesystem, please consider to set \`FILENAME_MAX_LEN' to the max number chars(not bytes) of file name in your configuration file."
+	echo "[notice] \`FILENAME_MAX_LEN' will be set to 80 by default in future!"
+fi
 
 while [ "$#" -gt 0 ]; do
 	case "$1" in
